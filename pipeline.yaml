@@ -1,0 +1,7 @@
+name: hermes
+schedule: "@daily"
+start_date: "2025-01-01"
+
+default:
+  parameters:
+    HERMES_DB_PATH: hermes.duckdb

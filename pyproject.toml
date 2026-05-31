@@ -1,0 +1,32 @@
+[project]
+name = "hermes"
+version = "0.1.0"
+description = "Hierarchical Execution & Routing for Multi-agent Enterprise Supply-chain"
+requires-python = ">=3.11"
+dependencies = [
+    "ortools>=9.9",
+    "duckdb>=0.10",
+    "openai>=1.30",
+    "langgraph>=0.1",
+    "crewai>=0.10",
+    "pydantic>=2.0",
+    "redis>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "optimization*", "events*", "pipelines*"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["optimization/tests", "agents/tests"]
+asyncio_mode = "auto"

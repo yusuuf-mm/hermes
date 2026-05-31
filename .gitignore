@@ -1,0 +1,50 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ── DuckDB ───────────────────────────────────────────────────────────────────
+# Ignore the local DuckDB database file and its write-ahead log
+hermes.duckdb
+hermes.duckdb.wal
+
+# ── Node / Evidence.dev ──────────────────────────────────────────────────────
+# Ignore dashboard dependencies, generated templates, and build outputs
+dashboard/node_modules/
+dashboard/.evidence/
+dashboard/.svelte-kit/
+dashboard/build/
+.npm/
+
+# ── OS & IDEs ────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.project
+.pydevproject
+.settings/
+.DS_Store
+Thumbs.db
+Desktop.ini

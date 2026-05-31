@@ -1,0 +1,15 @@
+default_environment: local
+
+environments:
+  local:
+    connections:
+      duckdb:
+        - name: hermes_db
+          path: ./hermes.duckdb    # local DuckDB file during dev
+
+  production:
+    connections:
+      motherduck:
+        - name: hermes_db
+          token: ${MOTHERDUCK_TOKEN}
+          database: hermes
