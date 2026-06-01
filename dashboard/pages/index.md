@@ -11,7 +11,7 @@ select
     orders_served,
     solve_time_s,
     constraint_violations,
-    strftime(epoch_ms(cast(created_at as bigint)), '%Y-%m-%d %H:%M') as run_time
+    strftime(created_at, '%Y-%m-%d %H:%M') as run_time
 from hermes_db.solution_metadata
 order by created_at desc
 limit 1
@@ -53,7 +53,7 @@ order by rs.vehicle_id
 
 ```sql events_over_time
 select
-    strftime(epoch_ms(cast(emitted_at as bigint)), '%H:%M') as minute,
+    strftime(emitted_at, '%H:%M') as minute,
     event_type,
     count(*) as events
 from hermes_db.raw_events
