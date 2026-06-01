@@ -1,4 +1,4 @@
-.PHONY: install seed solve events agents map watch test lint clean
+.PHONY: install seed solve events agents map watch dash test lint clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 install:
@@ -29,6 +29,10 @@ watch:
 	@echo "Starting HERMES telemetry loop (manages solver internally)..."
 	@echo "Do NOT run make solve in another terminal while this is running."
 	python agents/run_telemetry.py
+
+dash:
+	@echo "Generating standalone dashboard..."
+	python dashboard/dashboard.py
 
 # ── Full pipeline (seed → quality checks → solve → agents) ───────────────────
 run:

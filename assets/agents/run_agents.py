@@ -125,6 +125,7 @@ def load_state(con: duckdb.DuckDBPyConnection) -> dict:
         })
 
     return {
+        "_tick_id":          "batch",   # overwritten by run_telemetry.py
         "run_id":            run_id,
         "current_routes":    current_routes,
         "solution_metadata": solution_metadata,
@@ -180,6 +181,7 @@ def run():
         result = subprocess.run(
             [sys.executable, "assets/optimization/run_solver.py"],
             capture_output=False,
+            env={**os.environ, "HERMES_SCENARIO_TAG": "active_disruption"},
         )
         if result.returncode == 0:
             print("   Re-optimisation complete.")
