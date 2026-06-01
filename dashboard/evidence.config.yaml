@@ -6,3 +6,6 @@ plugins:
 
 deployment:
   basePath: "/hermes"
+
+build:
+  strict: false
