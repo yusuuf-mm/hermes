@@ -2,13 +2,7 @@
 
 Interactive map of vehicle routes across Lagos. Toggle between scenarios using the layer control.
 
-<iframe
-    src="/routes_map.html"
-    width="100%"
-    height="700px"
-    frameborder="0"
-    style="border-radius: 8px; border: 1px solid #e0e0e0;">
-</iframe>
+> The interactive route map is generated locally. Run `python optimization/generate_map.py` to generate it, then redeploy.
 
 ## Scenarios
 
