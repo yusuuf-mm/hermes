@@ -4,6 +4,7 @@ Cognitive audit trail of the multi-agent decision pipeline. Shows agent executio
 
 ```sql total_ticks
 SELECT COUNT(DISTINCT tick_id) AS total_ticks FROM agent_logs
+WHERE agent_name != 'placeholder'
 ```
 
 ```sql total_resolves
@@ -15,6 +16,7 @@ WHERE agent_name = 'rerouting' AND decision LIKE '%resolv=True%'
 ```sql avg_latency
 SELECT ROUND(SUM((completed_at - started_at) * 1000) / 1000.0 / COUNT(DISTINCT tick_id), 1) AS avg_latency_s
 FROM agent_logs
+WHERE agent_name != 'placeholder'
 ```
 
 <BigValue data={total_ticks} value="total_ticks" title="Total Ticks Run" />
@@ -29,6 +31,7 @@ SELECT
     MAX(CASE WHEN al.agent_name = 'sla_risk' THEN TRY_CAST(al.decision AS DOUBLE) END) AS sla_risk_score,
     MIN(al.started_at) AS tick_started
 FROM agent_logs al
+WHERE al.agent_name != 'placeholder'
 GROUP BY al.tick_id
 ORDER BY tick_started
 ```
@@ -42,6 +45,7 @@ SELECT
     agent_name,
     ROUND(AVG((completed_at - started_at) * 1000), 0) AS avg_latency_ms
 FROM agent_logs
+WHERE agent_name != 'placeholder'
 GROUP BY agent_name
 ORDER BY avg_latency_ms DESC
 ```
@@ -57,6 +61,7 @@ SELECT
     ROUND(AVG((completed_at - started_at) * 1000), 0) AS avg_latency_ms,
     llm_model
 FROM agent_logs
+WHERE agent_name != 'placeholder'
 GROUP BY agent_name, llm_model
 ORDER BY executions DESC
 ```
@@ -75,6 +80,7 @@ SELECT
     LEFT(output_summary, 120) AS summary,
     decision
 FROM agent_logs
+WHERE agent_name != 'placeholder'
 ORDER BY completed_at DESC
 LIMIT 50
 ```
@@ -91,6 +97,7 @@ SELECT
     ROUND(SUM((al.completed_at - al.started_at) * 1000) / 1000.0, 1) AS pipeline_latency_s,
     MAX(CASE WHEN al.agent_name = 'rerouting' AND al.decision LIKE '%resolv=True%' THEN true ELSE false END) AS resolve_triggered
 FROM agent_logs al
+WHERE al.agent_name != 'placeholder'
 GROUP BY al.tick_id
 ORDER BY tick_started DESC
 LIMIT 20
