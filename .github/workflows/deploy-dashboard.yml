@@ -40,7 +40,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python deps
-        run: pip install duckdb folium
+        run: pip install duckdb==1.5.2 folium
 
       - name: Generate route map from MotherDuck
         run: python optimization/generate_map.py
