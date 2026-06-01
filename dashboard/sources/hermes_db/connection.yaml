@@ -1,4 +1,5 @@
 name: hermes_db
 type: duckdb
 options:
-  filename: ../../../hermes.duckdb
+  token: "{{ env.MOTHERDUCK_TOKEN }}"
+  database: "md:hermes01"

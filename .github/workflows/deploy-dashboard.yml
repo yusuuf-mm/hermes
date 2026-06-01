@@ -3,12 +3,6 @@ name: Deploy HERMES Dashboard
 on:
   push:
     branches: [main]
-    paths:
-      - 'dashboard/**'
-      - 'assets/**'
-      - 'optimization/**'
-      - 'events/**'
-      - 'agents/**'
   workflow_dispatch:
 
 permissions:
@@ -38,41 +32,21 @@ jobs:
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python deps
-        run: pip install duckdb pydantic ortools
-
-      - name: Seed DuckDB for build
-        run: python assets/ingestion/seed_data.py
-        env:
-          HERMES_DB_PATH: hermes.duckdb
-
-      - name: Run solver
-        run: python assets/optimization/run_solver.py
-        env:
-          HERMES_DB_PATH: hermes.duckdb
-          SOLVER_TIME_LIMIT_S: "30"
-
-      - name: Generate events
-        run: python -c "from events.simulator.disruption_generator import generate_batch; generate_batch(20)"
-        env:
-          HERMES_DB_PATH: hermes.duckdb
-
       - name: Install dashboard deps
         run: npm ci --legacy-peer-deps
         working-directory: dashboard
 
-      - name: Generate sources
+      - name: Generate sources from MotherDuck
         run: npx evidence sources
         working-directory: dashboard
+        env:
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
 
       - name: Build dashboard
         run: npm run build
         working-directory: dashboard
+        env:
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
