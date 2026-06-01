@@ -1,4 +1,4 @@
-.PHONY: install seed solve events agents test lint clean
+.PHONY: install seed solve events agents map watch test lint clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 install:
@@ -20,6 +20,15 @@ events:
 agents:
 	@echo "Running agent system..."
 	python assets/agents/run_agents.py
+
+map:
+	@echo "Generating route map..."
+	python optimization/generate_map.py
+
+watch:
+	@echo "Starting HERMES telemetry loop (manages solver internally)..."
+	@echo "Do NOT run make solve in another terminal while this is running."
+	python agents/run_telemetry.py
 
 # ── Full pipeline (seed → quality checks → solve → agents) ───────────────────
 run:

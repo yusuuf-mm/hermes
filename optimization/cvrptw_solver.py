@@ -297,13 +297,30 @@ def solve(inp: SolverInput, time_limit_s: int = 60) -> SolverOutput:
 
     total_cost_km = round(total_dist_cm / 100, 2)
 
+    # -- Post-solve capacity validation ------------------------------------
+    constraint_violations = 0
+    node_demand = {n.node_id: n.demand_units for n in inp.nodes}
+    vehicle_cap = {v.vehicle_id: v.capacity_units for v in inp.vehicles}
+
+    vehicle_loads: dict[str, int] = {}
+    for stop in routes:
+        if stop.node_id == 0:
+            continue
+        vid = stop.vehicle_id
+        vehicle_loads[vid] = vehicle_loads.get(vid, 0) + node_demand[stop.node_id]
+
+    for vid, load in vehicle_loads.items():
+        cap = vehicle_cap.get(vid, 0)
+        if load > cap:
+            constraint_violations += 1
+
     return SolverOutput(
         run_id                = run_id,
         status                = status,
         total_cost_km         = total_cost_km,
         vehicles_used         = vehicles_used,
         orders_served         = len(nodes_visited),
-        constraint_violations = 0,
+        constraint_violations = constraint_violations,
         solve_time_s          = solve_time,
         routes                = routes,
     )

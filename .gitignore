@@ -1,4 +1,5 @@
 # ── Python ───────────────────────────────────────────────────────────────────
+.env
 __pycache__/
 *.pyc
 *.pyo
@@ -48,3 +49,8 @@ dashboard/build/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+.bruin.yml
+logs/runs
+logs/*.log
+*.py[cod]

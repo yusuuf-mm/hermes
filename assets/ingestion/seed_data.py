@@ -244,7 +244,28 @@ def seed(db_path: str = DB_PATH):
             constraint_violations INTEGER,
             solve_time_s        DOUBLE,
             solver_status       VARCHAR,
+            scenario_tag        VARCHAR DEFAULT 'baseline',
             created_at          TIMESTAMP DEFAULT current_timestamp
+        )
+    """)
+
+    # -- quality schema (for Bruin QA checks) ----------------------------
+    con.execute("CREATE SCHEMA IF NOT EXISTS quality")
+
+    # -- agent_logs --------------------------------------------------------
+    con.execute("DROP TABLE IF EXISTS agent_logs")
+    con.execute("""
+        CREATE TABLE agent_logs (
+            tick_id         VARCHAR,
+            run_id          VARCHAR,
+            agent_name      VARCHAR,
+            started_at      TIMESTAMP,
+            completed_at    TIMESTAMP,
+            input_summary   VARCHAR,
+            output_summary  VARCHAR,
+            decision        VARCHAR,
+            llm_model       VARCHAR,
+            tokens_used     INTEGER
         )
     """)
 

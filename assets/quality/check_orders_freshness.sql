@@ -21,6 +21,7 @@ columns:
         value: 1
 @bruin */
 
+CREATE OR REPLACE TABLE quality.check_orders_freshness AS
 SELECT COUNT(*) AS order_count
 FROM daily_orders
 WHERE status = 'pending'

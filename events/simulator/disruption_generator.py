@@ -220,9 +220,10 @@ SEVERITY_COLOUR = {
 def run_live(interval_s: float = 2.0, max_events: int | None = None):
     """
     Continuously generate events and write to DuckDB.
+    Opens/closes connection per write to release the lock
+    between events (allows concurrent readers).
     Press Ctrl+C to stop.
     """
-    con   = duckdb.connect(DB_PATH)
     count = 0
 
     print("HERMES Event Simulator — live mode")
@@ -235,7 +236,10 @@ def run_live(interval_s: float = 2.0, max_events: int | None = None):
                 break
 
             evt    = pick_event()
+            con    = duckdb.connect(DB_PATH)
             write_event(con, evt)
+            con.close()
+
             symbol = SEVERITY_COLOUR.get(evt.event_type, "?")
             vid    = evt.vehicle_id or "---"
             print(
@@ -248,8 +252,6 @@ def run_live(interval_s: float = 2.0, max_events: int | None = None):
 
     except KeyboardInterrupt:
         print(f"\nStopped after {count} events.")
-    finally:
-        con.close()
 
 
 if __name__ == "__main__":

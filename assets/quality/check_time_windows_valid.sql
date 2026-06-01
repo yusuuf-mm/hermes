@@ -20,6 +20,7 @@ columns:
         value: 0
 @bruin */
 
+CREATE OR REPLACE TABLE quality.check_time_windows_valid AS
 SELECT COUNT(*) AS invalid_windows
 FROM nodes
 WHERE NOT is_depot

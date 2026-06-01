@@ -25,8 +25,9 @@ from optimization.cvrptw_solver import load_solver_input, solve
 from optimization.solution_writer import write_solution
 
 
-DB_PATH       = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
-TIME_LIMIT_S  = int(os.environ.get("SOLVER_TIME_LIMIT_S", "60"))
+DB_PATH        = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
+TIME_LIMIT_S   = int(os.environ.get("SOLVER_TIME_LIMIT_S", "60"))
+SCENARIO_TAG   = os.environ.get("HERMES_SCENARIO_TAG", "baseline")
 
 
 def run():
@@ -50,7 +51,7 @@ def run():
     output = solve(inp, time_limit_s=TIME_LIMIT_S)
 
     print(f"\nSolver finished — status: {output.status}")
-    write_solution(con, output)
+    write_solution(con, output, scenario_tag=SCENARIO_TAG)
 
     con.close()
     print("\nDone.")

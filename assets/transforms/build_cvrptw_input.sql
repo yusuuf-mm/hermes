@@ -18,8 +18,6 @@ description: >
   joins inside solver code.
 @bruin */
 
-CREATE OR REPLACE VIEW cvrptw_input AS
-
 WITH active_orders AS (
   SELECT o.order_id, o.node_id, o.demand_units, o.order_date
   FROM daily_orders o
@@ -57,4 +55,4 @@ SELECT nd.node_id, nd.name, nd.lat, nd.lon,
        nd.tw_open, nd.tw_close, nd.service_min,
        nd.total_demand, FALSE AS is_depot
 FROM node_demand nd
-ORDER BY is_depot DESC, node_id ASC;
+ORDER BY is_depot DESC, node_id ASC

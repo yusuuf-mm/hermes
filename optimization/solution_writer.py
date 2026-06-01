@@ -12,7 +12,11 @@ import duckdb
 from optimization.cvrptw_solver import SolverOutput
 
 
-def write_solution(con: duckdb.DuckDBPyConnection, output: SolverOutput) -> None:
+def write_solution(
+    con: duckdb.DuckDBPyConnection,
+    output: SolverOutput,
+    scenario_tag: str = "baseline",
+) -> None:
     """
     Persist solver output to:
       - route_solutions    (one row per stop)
@@ -44,8 +48,8 @@ def write_solution(con: duckdb.DuckDBPyConnection, output: SolverOutput) -> None
         """
         INSERT INTO solution_metadata
             (run_id, total_cost_km, vehicles_used, orders_served,
-             constraint_violations, solve_time_s, solver_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+             constraint_violations, solve_time_s, solver_status, scenario_tag)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             output.run_id,
@@ -55,6 +59,7 @@ def write_solution(con: duckdb.DuckDBPyConnection, output: SolverOutput) -> None
             output.constraint_violations,
             output.solve_time_s,
             output.status,
+            scenario_tag,
         ),
     )
 

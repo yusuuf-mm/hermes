@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from langgraph.graph import END, StateGraph
 
 from agents.state import HermesState
+from agents.telemetry import wrap_agent_node
 import agents.monitoring_agent    as monitoring
 import agents.classification_agent as classification
 import agents.sla_risk_agent       as sla_risk
@@ -53,15 +54,19 @@ def should_continue_to_dispatch(state: HermesState) -> str:
 # Graph construction
 # ---------------------------------------------------------------------------
 
-def build_graph() -> StateGraph:
+def build_graph(with_telemetry: bool = False) -> StateGraph:
     graph = StateGraph(HermesState)
 
     # -- Register nodes (one per agent) ------------------------------------
-    graph.add_node("monitoring",     monitoring.run)
-    graph.add_node("classification", classification.run)
-    graph.add_node("sla_risk",       sla_risk.run)
-    graph.add_node("rerouting",      rerouting.run)
-    graph.add_node("dispatch",       dispatch.run)
+    # When telemetry is enabled, wrap each node with timing + DB logging
+    def _node(name, fn):
+        return wrap_agent_node(name, fn) if with_telemetry else fn
+
+    graph.add_node("monitoring",     _node("monitoring",     monitoring.run))
+    graph.add_node("classification", _node("classification", classification.run))
+    graph.add_node("sla_risk",       _node("sla_risk",       sla_risk.run))
+    graph.add_node("rerouting",      _node("rerouting",      rerouting.run))
+    graph.add_node("dispatch",       _node("dispatch",       dispatch.run))
 
     # -- Entry point -------------------------------------------------------
     graph.set_entry_point("monitoring")
@@ -88,6 +93,6 @@ def build_graph() -> StateGraph:
     return graph
 
 
-def compile_graph():
+def compile_graph(with_telemetry: bool = False):
     """Return a compiled, runnable LangGraph app."""
-    return build_graph().compile()
+    return build_graph(with_telemetry=with_telemetry).compile()

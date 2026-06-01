@@ -19,6 +19,7 @@ columns:
         value: 0
 @bruin */
 
+CREATE OR REPLACE TABLE quality.check_demand_positive AS
 SELECT COUNT(*) AS bad_rows
 FROM daily_orders
 WHERE demand_units <= 0

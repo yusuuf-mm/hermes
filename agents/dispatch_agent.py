@@ -30,6 +30,7 @@ import duckdb
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from agents.db_lock import db_lock
 from agents.llm_client import DISPATCH_MODEL, complete
 from agents.state import HermesState
 
@@ -143,17 +144,18 @@ def _persist_processed_events(state: HermesState) -> None:
     ]
 
     try:
-        con = duckdb.connect(DB_PATH)
-        con.executemany(
-            """
-            INSERT OR IGNORE INTO processed_events
-                (event_id, severity, category, sla_risk_score,
-                 action_taken, processed_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            rows,
-        )
-        con.close()
+        with db_lock:
+            con = duckdb.connect(DB_PATH)
+            con.executemany(
+                """
+                INSERT OR IGNORE INTO processed_events
+                    (event_id, severity, category, sla_risk_score,
+                     action_taken, processed_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            con.close()
         print(f"  [Dispatch]       {len(rows)} events written to processed_events")
     except Exception as e:
         print(f"  [Dispatch]       DB write warning: {e}")
