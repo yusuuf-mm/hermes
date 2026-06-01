@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HERMES Operations Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0A0E1A; color: #E2E8F0; font-family: 'Inter', -apple-system, sans-serif; padding: 2rem; }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; color: #00D4A8; }
+        h2 { font-size: 1.3rem; margin: 2rem 0 1rem; color: #E2E8F0; border-bottom: 1px solid #1E293B; padding-bottom: 0.5rem; }
+        .subtitle { color: #64748B; margin-bottom: 2rem; }
+        .kpi-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
+        .kpi { background: #111827; border: 1px solid #1E293B; border-radius: 8px; padding: 1rem 1.5rem; min-width: 140px; }
+        .kpi-label { display: block; font-size: 0.75rem; color: #64748B; text-transform: uppercase; }
+        .kpi-value { display: block; font-size: 1.4rem; font-weight: 700; color: #00D4A8; margin-top: 0.25rem; }
+        .card { background: #111827; border: 1px solid #1E293B; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 0.75rem; border-bottom: 2px solid #1E293B; color: #64748B; font-size: 0.75rem; text-transform: uppercase; }
+        td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #1E293B; }
+        tr:hover td { background: rgba(0,212,168,0.05); }
+        .timestamp { color: #475569; font-size: 0.8rem; text-align: right; margin-top: 2rem; }
+    </style>
+</head>
+<body>
+    <h1>HERMES Operations Dashboard</h1>
+    <p class="subtitle">Hierarchical Execution & Routing for Multi-agent Enterprise Supply-chain</p>
+
+    
+        <div class="kpi-row">
+            <div class="kpi"><span class="kpi-label">Run ID</span><span class="kpi-value">RUN-B07768DB</span></div>
+            <div class="kpi"><span class="kpi-label">Status</span><span class="kpi-value">SUCCESS</span></div>
+            <div class="kpi"><span class="kpi-label">Scenario</span><span class="kpi-value">active_disruption</span></div>
+            <div class="kpi"><span class="kpi-label">Total Cost</span><span class="kpi-value">172.0 km</span></div>
+            <div class="kpi"><span class="kpi-label">Vehicles</span><span class="kpi-value">3</span></div>
+            <div class="kpi"><span class="kpi-label">Orders Served</span><span class="kpi-value">18</span></div>
+            <div class="kpi"><span class="kpi-label">Violations</span><span class="kpi-value">0</span></div>
+            <div class="kpi"><span class="kpi-label">Solve Time</span><span class="kpi-value">60.1s</span></div>
+        </div>
+
+    <h2>Fleet Status</h2>
+    <div class="card"><table>
+        <thead><tr><th>Vehicle</th><th>Stops</th><th>Load</th><th>Status</th></tr></thead>
+        <tbody><tr>
+            <td>VH-001</td><td>8</td>
+            <td>101/100</td>
+            <td style="color:#EF4444">OVERLOADED</td>
+        </tr><tr>
+            <td>VH-002</td><td>6</td>
+            <td>76/100</td>
+            <td style="color:#00D4A8">ACTIVE</td>
+        </tr><tr>
+            <td>VH-003</td><td>0</td>
+            <td>0/100</td>
+            <td style="color:#64748B">IDLE</td>
+        </tr><tr>
+            <td>VH-004</td><td>4</td>
+            <td>68/100</td>
+            <td style="color:#00D4A8">ACTIVE</td>
+        </tr><tr>
+            <td>VH-005</td><td>0</td>
+            <td>0/100</td>
+            <td style="color:#64748B">IDLE</td>
+        </tr></tbody>
+    </table></div>
+
+    <h2>Processed Events</h2>
+    <div class="card"><table>
+        <thead><tr><th>Event Type</th><th>Severity</th><th>Category</th><th>SLA Score</th><th>Action</th></tr></thead>
+        <tbody><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.42</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.42</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.42</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#F59E0B">high</td>
+            <td>safety</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#F59E0B">high</td>
+            <td>sla_risk</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#F59E0B">high</td>
+            <td>safety</td>
+            <td>0.42</td>
+            <td>vehicle_swap</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.42</td>
+            <td>vehicle_swap</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.42</td>
+            <td>vehicle_swap</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.35</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.35</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.35</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#F59E0B">high</td>
+            <td>sla_risk</td>
+            <td>0.65</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.65</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>failed_delivery</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>sla_risk</td>
+            <td>0.65</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#F59E0B">high</td>
+            <td>sla_risk</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>failed_delivery</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>sla_risk</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.43</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.43</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>route_deviation</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.43</td>
+            <td>hold</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#F59E0B">high</td>
+            <td>sla_risk</td>
+            <td>0.65</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.65</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.65</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>live_order</td>
+            <td style="color:#F59E0B">high</td>
+            <td>new_demand</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>operational</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#F59E0B">high</td>
+            <td>sla_risk</td>
+            <td>0.70</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>traffic_disruption</td>
+            <td style="color:#F59E0B">high</td>
+            <td>sla_risk</td>
+            <td>0.67</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>failed_delivery</td>
+            <td style="color:#3B82F6">medium</td>
+            <td>sla_risk</td>
+            <td>0.67</td>
+            <td>partial_replan</td>
+        </tr><tr>
+            <td>vehicle_telemetry</td>
+            <td style="color:#64748B">low</td>
+            <td>operational</td>
+            <td>0.67</td>
+            <td>partial_replan</td>
+        </tr></tbody>
+    </table></div>
+
+    <h2>Agent Telemetry — Cognitive Audit Trail</h2>
+    <div class="card">
+    <div id="sla_trend" style="height:300px"></div>
+    <script>
+    Plotly.newPlot('sla_trend', [{
+        x: ["batch"],
+        y: [0],
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: {color: '#00D4A8', width: 2},
+        marker: {color: '#00D4A8', size: 6},
+        fill: 'tozeroy',
+        fillcolor: 'rgba(0,212,168,0.1)'
+    }], {
+        paper_bgcolor: '#111827', plot_bgcolor: '#111827',
+        font: {color: '#E2E8F0'},
+        xaxis: {title: 'Tick', gridcolor: '#1E293B'},
+        yaxis: {title: 'SLA Risk Score', gridcolor: '#1E293B', range: [0, 1]},
+        margin: {t: 30, b: 50, l: 50, r: 20},
+        title: {text: 'SLA Risk Trend Across Ticks', font: {size: 14}}
+    }, {responsive: true});
+    </script>
+    </div>
+    <div class="card">
+    <div id="agent_latency" style="height:300px"></div>
+    <script>
+    Plotly.newPlot('agent_latency', [{
+        y: ["rerouting", "classification", "dispatch", "sla_risk", "monitoring"],
+        x: [31909.0, 28352.0, 4530.0, 2846.0, 1539.0],
+        type: 'bar',
+        orientation: 'h',
+        marker: {color: ["#00D4A8", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6"]}
+    }], {
+        paper_bgcolor: '#111827', plot_bgcolor: '#111827',
+        font: {color: '#E2E8F0'},
+        xaxis: {title: 'Avg Latency (ms)', gridcolor: '#1E293B'},
+        yaxis: {gridcolor: '#1E293B'},
+        margin: {t: 30, b: 50, l: 120, r: 20},
+        title: {text: 'Agent Execution Latency (ms)', font: {size: 14}}
+    }, {responsive: true});
+    </script>
+    </div>
+    <div class="card"><table>
+        <thead><tr><th>Tick</th><th>Agent</th><th>Model</th><th>Latency (ms)</th><th>Summary</th><th>Time</th></tr></thead>
+        <tbody><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>911</td>
+            <td>Thirteen anomalies were detected during the route run RUN-B07768DB. Two vehicles deviated from plann</td>
+            <td>2026-06-01 00:28:10</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>46743</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:27:30</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>827</td>
+            <td>Multiple route deviations, traffic disruptions, failed deliveries, live orders, and vehicle breakdow</td>
+            <td>2026-06-01 00:26:43</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>48271</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:26:04</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>1228</td>
+            <td>The run has experienced 14 route deviations and 5 traffic disruptions. Additionally, 4 vehicles have</td>
+            <td>2026-06-01 00:25:16</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>29986</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:24:36</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>904</td>
+            <td>Multiple vehicles have experienced route deviations and traffic disruptions, resulting in lost time </td>
+            <td>2026-06-01 00:24:06</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>44903</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:23:27</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>1113</td>
+            <td>Multiple route deviations and traffic disruptions have been detected along the route RUN-B07768DB, c</td>
+            <td>2026-06-01 00:22:42</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>47018</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:22:00</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>1022</td>
+            <td>Multiple vehicles have experienced route deviations, resulting in lost time and efficiency. There ar</td>
+            <td>2026-06-01 00:21:13</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>47604</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:20:32</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>1156</td>
+            <td>Several vehicles have encountered route deviations and traffic disruptions, resulting in time losses</td>
+            <td>2026-06-01 00:19:45</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>49225</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:19:04</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>1040</td>
+            <td>Several vehicles have deviated from their planned routes, resulting in time lost and possible re-rou</td>
+            <td>2026-06-01 00:18:14</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>37893</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:17:32</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>1015</td>
+            <td>Several vehicles have deviated from planned routes, traffic disruptions are affecting multiple nodes</td>
+            <td>2026-06-01 00:16:54</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>46315</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:16:05</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>monitoring</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>850</td>
+            <td>This monitoring run identified 12 anomalies on route RUN-B07768DB, including significant route devia</td>
+            <td>2026-06-01 00:15:19</td>
+        </tr><tr>
+            <td>batch</td>
+            <td>classification</td>
+            <td>llama-3.1-8b-instant</td>
+            <td>34625</td>
+            <td>50 events: medium=50</td>
+            <td>2026-06-01 00:14:38</td>
+        </tr></tbody>
+    </table></div>
+
+    <p class="timestamp">Generated 2026-06-01 00:28:35 UTC</p>
+</body>
+</html>

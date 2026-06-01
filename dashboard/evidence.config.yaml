@@ -5,4 +5,4 @@ plugins:
     "@evidence-dev/duckdb": {}
 
 deployment:
-  basePath: ""
+  basePath: "/hermes"

@@ -1,0 +1,84 @@
+name: Deploy HERMES Dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/**'
+      - 'assets/**'
+      - 'optimization/**'
+      - 'events/**'
+      - 'agents/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: pip install duckdb pydantic ortools
+
+      - name: Seed DuckDB for build
+        run: python assets/ingestion/seed_data.py
+        env:
+          HERMES_DB_PATH: hermes.duckdb
+
+      - name: Run solver
+        run: python assets/optimization/run_solver.py
+        env:
+          HERMES_DB_PATH: hermes.duckdb
+          SOLVER_TIME_LIMIT_S: "30"
+
+      - name: Generate events
+        run: python -c "from events.simulator.disruption_generator import generate_batch; generate_batch(20)"
+        env:
+          HERMES_DB_PATH: hermes.duckdb
+
+      - name: Install dashboard deps
+        run: npm ci --legacy-peer-deps
+        working-directory: dashboard
+
+      - name: Generate sources
+        run: npx evidence sources
+        working-directory: dashboard
+
+      - name: Build dashboard
+        run: npm run build
+        working-directory: dashboard
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
