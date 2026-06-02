@@ -4,7 +4,7 @@ generate_map.py
 Generates an interactive Folium map of routing solutions.
 Reads route_solutions + nodes from DuckDB, draws polylines
 colored by vehicle, with FeatureGroup per scenario_tag.
-Outputs dashboard/static/routes_map.html.
+Outputs dashboard/public/routes_map.html.
 """
 
 import os
