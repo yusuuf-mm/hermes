@@ -34,28 +34,6 @@ jobs:
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python deps
-        run: pip install duckdb==1.5.2 folium
-
-      - name: Ensure empty tables exist
-        run: |
-          python -c "
-          import duckdb, os
-          con = duckdb.connect('md:hermes01')
-          con.execute('CREATE TABLE IF NOT EXISTS raw_events (event_id VARCHAR PRIMARY KEY, event_type VARCHAR, vehicle_id VARCHAR, node_id INTEGER, payload JSON, emitted_at DOUBLE)')
-          con.execute('CREATE TABLE IF NOT EXISTS processed_events (event_id VARCHAR PRIMARY KEY, severity VARCHAR, category VARCHAR, sla_risk_score DOUBLE, action_taken VARCHAR, processed_at DOUBLE)')
-          con.execute('CREATE TABLE IF NOT EXISTS agent_logs (tick_id VARCHAR, run_id VARCHAR, agent_name VARCHAR, started_at DOUBLE, completed_at DOUBLE, input_summary VARCHAR, output_summary VARCHAR, decision VARCHAR, llm_model VARCHAR, tokens_used INTEGER)')
-          con.close()
-          print('Tables ensured')
-          "
-        env:
-          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
-
       - name: Install dashboard deps
         run: npm ci --legacy-peer-deps
         working-directory: dashboard
