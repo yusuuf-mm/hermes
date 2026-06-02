@@ -19,7 +19,7 @@ limit 100
 select
     event_type,
     count(*) as total,
-    count(*) filter (where emitted_at >= current_timestamp - interval '1 hour') as last_hour
+    count(*) filter (where emitted_at >= cast(current_timestamp as timestamp) - interval '1 hour') as last_hour
 from hermes_db.raw_events
 where event_type != 'placeholder'
 group by event_type
