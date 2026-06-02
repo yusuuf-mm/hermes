@@ -34,6 +34,19 @@ jobs:
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: pip install duckdb==1.5.2 folium
+
+      - name: Generate route map from MotherDuck
+        run: python optimization/generate_map.py
+        env:
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+
       - name: Install dashboard deps
         run: npm ci --legacy-peer-deps
         working-directory: dashboard

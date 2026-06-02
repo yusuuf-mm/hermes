@@ -15,7 +15,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import duckdb
 import folium
 
-DB_PATH = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
+# MotherDuck connection when MOTHERDUCK_TOKEN is set, local file otherwise
+_token = os.environ.get("MOTHERDUCK_TOKEN")
+if _token:
+    DB_PATH = f"md:hermes?motherduck_token={_token}"
+else:
+    DB_PATH = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "../dashboard/public/routes_map.html")
 
 # Colour palette per vehicle (up to 8 vehicles)
@@ -158,13 +163,14 @@ def main():
     print("HERMES - Route Map Generator")
     print("=" * 60)
 
-    con = duckdb.connect(DB_PATH, read_only=True)
+    read_only = "motherduck_token" not in DB_PATH
+    con = duckdb.connect(DB_PATH, read_only=read_only)
 
     rows = load_route_data(con)
     if not rows:
-        print("  No route solutions found. Run 'make solve' first.")
+        print("  WARNING: No route solutions found. Skipping map generation.")
         con.close()
-        sys.exit(1)
+        sys.exit(0)
 
     vehicle_ids = load_vehicle_ids(con)
     con.close()
