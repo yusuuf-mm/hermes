@@ -42,11 +42,6 @@ jobs:
       - name: Install Python deps
         run: pip install duckdb==1.5.3 folium
 
-      - name: Generate route map from MotherDuck
-        run: python optimization/generate_map.py
-        env:
-          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
-
       - name: Install dashboard deps
         run: npm ci --legacy-peer-deps
         working-directory: dashboard
@@ -56,6 +51,9 @@ jobs:
         working-directory: dashboard
         env:
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+
+      - name: Generate route map from parquet
+        run: python optimization/generate_map.py
 
       - name: Build dashboard
         run: npm run build
