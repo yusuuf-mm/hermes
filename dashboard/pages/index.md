@@ -11,7 +11,7 @@ select
     orders_served,
     solve_time_s,
     constraint_violations,
-    strftime(created_at, '%Y-%m-%d %H:%M') as run_time
+    strftime(epoch_ms(cast(created_at as bigint)), '%Y-%m-%d %H:%M') as run_time
 from hermes_db.solution_metadata
 order by created_at desc
 limit 1
@@ -22,6 +22,7 @@ select
     event_type,
     count(*) as total_events
 from hermes_db.raw_events
+where event_type != 'placeholder'
 group by event_type
 order by total_events desc
 ```
@@ -33,6 +34,7 @@ select
     count(*)              as event_count,
     round(avg(sla_risk_score), 3) as avg_sla_risk
 from hermes_db.processed_events
+where severity != 'placeholder'
 group by severity, category
 order by avg_sla_risk desc
 ```
@@ -53,10 +55,11 @@ order by rs.vehicle_id
 
 ```sql events_over_time
 select
-    strftime(emitted_at, '%H:%M') as minute,
+    strftime(epoch_ms(cast(emitted_at as bigint)), '%H:%M') as minute,
     event_type,
     count(*) as events
 from hermes_db.raw_events
+where event_type != 'placeholder'
 group by minute, event_type
 order by minute
 ```

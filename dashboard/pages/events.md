@@ -8,8 +8,9 @@ select
     event_type,
     coalesce(vehicle_id, '—')  as vehicle_id,
     coalesce(cast(node_id as varchar), '—') as node_id,
-    strftime(emitted_at, '%H:%M:%S') as time
+    strftime(epoch_ms(cast(emitted_at as bigint)), '%H:%M:%S') as time
 from hermes_db.raw_events
+where event_type != 'placeholder'
 order by emitted_at desc
 limit 100
 ```
@@ -18,8 +19,9 @@ limit 100
 select
     event_type,
     count(*) as total,
-    count(*) filter (where emitted_at >= cast(current_timestamp as timestamp) - interval '1 hour') as last_hour
+    count(*) filter (where emitted_at >= (extract(epoch from current_timestamp) * 1000) - 3600000) as last_hour
 from hermes_db.raw_events
+where event_type != 'placeholder'
 group by event_type
 order by total desc
 ```
@@ -32,9 +34,10 @@ select
     p.category,
     round(p.sla_risk_score, 3) as sla_risk_score,
     p.action_taken,
-    strftime(p.processed_at, '%H:%M:%S') as processed_at
+    strftime(epoch_ms(cast(p.processed_at as bigint)), '%H:%M:%S') as processed_at
 from hermes_db.processed_events p
 join hermes_db.raw_events r on p.event_id = r.event_id
+where p.severity != 'placeholder'
 order by p.processed_at desc
 ```
 
@@ -43,6 +46,7 @@ select
     severity,
     count(*) as count
 from hermes_db.processed_events
+where severity != 'placeholder'
 group by severity
 order by
     case severity
@@ -55,11 +59,12 @@ order by
 
 ```sql sla_risk_trend
 select
-    strftime(processed_at, '%H:%M') as time_bucket,
+    strftime(epoch_ms(cast(processed_at as bigint)), '%H:%M') as time_bucket,
     round(avg(sla_risk_score), 3)   as avg_risk,
     round(max(sla_risk_score), 3)   as peak_risk,
     count(*)                        as events
 from hermes_db.processed_events
+where severity != 'placeholder'
 group by time_bucket
 order by time_bucket
 ```
