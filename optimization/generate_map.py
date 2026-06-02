@@ -18,7 +18,7 @@ import folium
 # MotherDuck connection when MOTHERDUCK_TOKEN is set, local file otherwise
 _token = os.environ.get("MOTHERDUCK_TOKEN")
 if _token:
-    DB_PATH = f"md:hermes?motherduck_token={_token}"
+    DB_PATH = f"md:hermes01?motherduck_token={_token}"
 else:
     DB_PATH = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "../dashboard/public/routes_map.html")
