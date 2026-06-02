@@ -11,7 +11,7 @@ select
     orders_served,
     solve_time_s,
     constraint_violations,
-    strftime(epoch_ms(cast(created_at as bigint)), '%Y-%m-%d %H:%M') as run_time
+    strftime(created_at, '%Y-%m-%d %H:%M') as run_time
 from hermes_db.solution_metadata
 order by created_at desc
 limit 1
