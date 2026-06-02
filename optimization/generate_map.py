@@ -21,7 +21,7 @@ if _token:
     DB_PATH = f"md:hermes01?motherduck_token={_token}"
 else:
     DB_PATH = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
-OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "../dashboard/public/routes_map.html")
+OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "../dashboard/static/routes_map.html")
 
 # Colour palette per vehicle (up to 8 vehicles)
 VEHICLE_COLORS = [
