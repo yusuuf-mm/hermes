@@ -9,3 +9,5 @@ deployment:
 
 build:
   strict: false
+
+title: "HERMES Operations"

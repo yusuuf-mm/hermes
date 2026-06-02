@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --hermes-teal: #1D9E75;
+  --hermes-teal-dark: #0F6E56;
+  --hermes-bg: #111827;
+  --hermes-surface: #1A2332;
+  --hermes-border: rgba(255, 255, 255, 0.08);
+  --hermes-text: #E2E8F0;
+  --hermes-text-muted: #8896A6;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Evidence component overrides */
+:root {
+  --color-primary: var(--hermes-teal);
+  --color-primary-dark: var(--hermes-teal-dark);
+}
