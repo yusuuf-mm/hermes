@@ -14,7 +14,7 @@ WHERE agent_name = 'rerouting' AND decision LIKE '%resolv=True%'
 ```
 
 ```sql avg_latency
-SELECT ROUND(SUM((completed_at - started_at) * 1000) / 1000.0 / COUNT(DISTINCT tick_id), 1) AS avg_latency_s
+SELECT ROUND(SUM(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000) / 1000.0 / COUNT(DISTINCT tick_id), 1) AS avg_latency_s
 FROM agent_logs
 WHERE agent_name != 'placeholder'
 ```
@@ -43,7 +43,7 @@ ORDER BY tick_started
 ```sql agent_latency
 SELECT
     agent_name,
-    ROUND(AVG((completed_at - started_at) * 1000), 0) AS avg_latency_ms
+    ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000), 0) AS avg_latency_ms
 FROM agent_logs
 WHERE agent_name != 'placeholder'
 GROUP BY agent_name
@@ -58,7 +58,7 @@ ORDER BY avg_latency_ms DESC
 SELECT
     agent_name,
     COUNT(*) AS executions,
-    ROUND(AVG((completed_at - started_at) * 1000), 0) AS avg_latency_ms,
+    ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000), 0) AS avg_latency_ms,
     llm_model
 FROM agent_logs
 WHERE agent_name != 'placeholder'
@@ -72,11 +72,11 @@ ORDER BY executions DESC
 
 ```sql full_log
 SELECT
-    strftime(epoch_ms(cast(completed_at as bigint)), '%Y-%m-%d %H:%M:%S') AS logged_at,
+    strftime(completed_at, '%Y-%m-%d %H:%M:%S') AS logged_at,
     tick_id AS tick,
     agent_name,
     llm_model AS model,
-    ROUND((completed_at - started_at) * 1000, 0) AS latency_ms,
+    ROUND(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000, 0) AS latency_ms,
     LEFT(output_summary, 120) AS summary,
     decision
 FROM agent_logs
@@ -94,7 +94,7 @@ SELECT
     al.tick_id,
     COUNT(*) AS events_processed,
     MIN(al.started_at) AS tick_started,
-    ROUND(SUM((al.completed_at - al.started_at) * 1000) / 1000.0, 1) AS pipeline_latency_s,
+    ROUND(SUM(EXTRACT(EPOCH FROM (al.completed_at - al.started_at)) * 1000) / 1000.0, 1) AS pipeline_latency_s,
     MAX(CASE WHEN al.agent_name = 'rerouting' AND al.decision LIKE '%resolv=True%' THEN true ELSE false END) AS resolve_triggered
 FROM agent_logs al
 WHERE al.agent_name != 'placeholder'

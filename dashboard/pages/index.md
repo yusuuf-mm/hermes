@@ -55,7 +55,7 @@ order by rs.vehicle_id
 
 ```sql events_over_time
 select
-    strftime(epoch_ms(cast(emitted_at as bigint)), '%H:%M') as minute,
+    strftime(emitted_at, '%H:%M') as minute,
     event_type,
     count(*) as events
 from hermes_db.raw_events
