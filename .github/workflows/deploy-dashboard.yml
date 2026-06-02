@@ -42,10 +42,18 @@ jobs:
       - name: Install Python deps
         run: pip install duckdb==1.5.2 folium
 
-      - name: Generate route map from MotherDuck
-        run: python optimization/generate_map.py
+      - name: Ensure empty tables exist
+        run: |
+          python -c "
+          import duckdb, os
+          con = duckdb.connect('md:hermes01')
+          con.execute('CREATE TABLE IF NOT EXISTS raw_events (event_id VARCHAR PRIMARY KEY, event_type VARCHAR, vehicle_id VARCHAR, node_id INTEGER, payload JSON, emitted_at DOUBLE)')
+          con.execute('CREATE TABLE IF NOT EXISTS processed_events (event_id VARCHAR PRIMARY KEY, severity VARCHAR, category VARCHAR, sla_risk_score DOUBLE, action_taken VARCHAR, processed_at DOUBLE)')
+          con.execute('CREATE TABLE IF NOT EXISTS agent_logs (tick_id VARCHAR, run_id VARCHAR, agent_name VARCHAR, started_at DOUBLE, completed_at DOUBLE, input_summary VARCHAR, output_summary VARCHAR, decision VARCHAR, llm_model VARCHAR, tokens_used INTEGER)')
+          con.close()
+          print('Tables ensured')
+          "
         env:
-          HERMES_DB_PATH: "md:hermes01"
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
 
       - name: Install dashboard deps
