@@ -9,6 +9,7 @@ independently from the OR model.
 from __future__ import annotations
 
 import duckdb
+
 from optimization.cvrptw_solver import SolverOutput
 
 

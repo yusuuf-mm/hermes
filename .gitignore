@@ -33,12 +33,23 @@ hermes.duckdb
 hermes.duckdb.wal
 
 # ── Node / Evidence.dev ──────────────────────────────────────────────────────
-# Ignore dashboard dependencies, generated templates, and build outputs
+# Ignore dashboard dependencies, generated templates, and build outputs.
+# These can each be 1+ GB; never commit them.
 dashboard/node_modules/
 dashboard/.evidence/
 dashboard/.svelte-kit/
 dashboard/build/
 .npm/
+
+# PROTECTED — do NOT ignore the static asset directory or the generated route
+# map. SvelteKit's production build expects `dashboard/static/` to be writable
+# and to contain `routes_map.html` at build time (the GitHub Actions workflow
+# regenerates it from MotherDuck-derived parquet files before `npm run build`).
+# The `!` allowlist below defends against any future wildcard rule that might
+# accidentally match these paths.
+!dashboard/static/
+!dashboard/static/**
+!dashboard/static/routes_map.html
 
 # ── OS & IDEs ────────────────────────────────────────────────────────────────
 .vscode/
@@ -54,3 +65,12 @@ Desktop.ini
 logs/runs
 logs/*.log
 *.py[cod]
+
+# ── Working notes & design references ───────────────────────────────────────
+# Throwaway notes from Claude sessions, design mockups, generated
+# route maps, and dev helper scripts.  These are not part of the
+# project — they live at the repo root for convenience.
+Here's where we are.txt
+HERMES Project Facts Dump.txt
+Claude-Hermes telemetry page SQL errors.txt
+assets/dev_mockups/

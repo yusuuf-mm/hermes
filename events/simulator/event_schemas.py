@@ -8,12 +8,12 @@ Agents deserialise from these models — never from raw dicts.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field
 import uuid
 from datetime import datetime
+from enum import Enum
+from typing import Optional
 
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Event type registry

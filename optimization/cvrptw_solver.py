@@ -21,11 +21,9 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional
 
 import duckdb
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
-
 
 # ---------------------------------------------------------------------------
 # Data classes

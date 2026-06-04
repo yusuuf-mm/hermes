@@ -24,6 +24,13 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+# Force UTF-8 stdout/stderr on Windows so Rich's Unicode box-drawing
+# and emoji don't hit cp1252 encode errors.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import duckdb
 from dotenv import load_dotenv
 
@@ -33,7 +40,28 @@ load_dotenv("config/.env" if os.path.exists("config/.env") else ".env",
             override=False)
 
 DB_PATH = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
-TICK_INTERVAL_S = int(os.environ.get("HERMES_TICK_INTERVAL_S", "10"))
+TICK_INTERVAL_S = int(os.environ.get("HERMES_TICK_INTERVAL_S", "130"))
+
+# Suggested tick intervals per model profile.  The daemon tick should be
+# longer than the slowest expected pipeline run, otherwise ticks queue
+# and the agent log floods.  Override per-deployment via
+# HERMES_TICK_INTERVAL_S in the environment.
+_PROFILE_TICK_HINTS_S: dict[str, int] = {
+    "demo":     130,    # all-gemma,  ~100-120s pipeline
+    "balanced": 90,     # all-qwen,   ~70s pipeline
+    "prod":     280,    # maverick+   ~240s pipeline
+}
+_profile = os.environ.get("HERMES_MODEL_PROFILE", "demo").lower()
+TICK_HINT_S = _PROFILE_TICK_HINTS_S.get(_profile, 130)
+if TICK_INTERVAL_S < TICK_HINT_S:
+    # Soft warning, not a hard override — explicit env var wins.
+    # Goes to stderr so it doesn't corrupt the Rich UI redraw.
+    print(
+        f"[telemetry] HERMES_TICK_INTERVAL_S={TICK_INTERVAL_S} is shorter "
+        f"than the recommended {TICK_HINT_S}s for profile '{_profile}'. "
+        f"Pipeline runs will overlap.",
+        file=sys.stderr,
+    )
 SIM_INTERVAL_S = float(os.environ.get("HERMES_SIM_INTERVAL_S", "3"))
 
 # Graceful shutdown
@@ -171,8 +199,26 @@ def run_tick(app) -> dict | None:
     state["_tick_id"] = tick_id
 
     tick_start = time.time()
-    # LLM calls happen here — no DB lock held
-    final_state = app.invoke(state)
+    # Sequential agent pipeline.  We bypass LangGraph here on purpose:
+    # LangGraph's BackgroundExecutor + contextvars corruption crashes
+    # the second tick with "PyEval_SaveThread: GIL released" on
+    # Python 3.11 + Windows.  The graph is linear (monitoring →
+    # classification → sla_risk → rerouting → dispatch, with one
+    # conditional skip-to-dispatch on no-anomalies), so calling the
+    # agent functions directly is equivalent and thread-free.
+    import agents.monitoring_agent as _monitoring
+    import agents.classification_agent as _classification
+    import agents.sla_risk_agent as _sla_risk
+    import agents.rerouting_agent as _rerouting
+    import agents.dispatch_agent as _dispatch
+
+    state = _monitoring.run(state)
+    if state.get("anomalies_detected", False):
+        state = _classification.run(state)
+        state = _sla_risk.run(state)
+        state = _rerouting.run(state)
+    state = _dispatch.run(state)
+    final_state = state
     tick_duration = time.time() - tick_start
 
     solver_triggered = False
@@ -207,24 +253,54 @@ def run_tick(app) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def read_fleet_state(_, run_id: str) -> list[dict]:
-    """Read current fleet metrics from DB for the right panel."""
-    with _db_lock:
-        con = duckdb.connect(DB_PATH, read_only=True)
-        rows = con.execute("""
-        SELECT
-            f.vehicle_id,
-            COUNT(rs.node_id) FILTER (WHERE rs.node_id != 0) AS customer_stops,
-            COALESCE(SUM(n.demand_units), 0) AS demand_served,
-            f.capacity_units,
-            COALESCE(MAX(rs.departure_time) - MIN(rs.arrival_time), 0) AS active_min,
-            f.max_shift_min
-        FROM fleet f
-        LEFT JOIN route_solutions rs ON f.vehicle_id = rs.vehicle_id AND rs.run_id = ?
-        LEFT JOIN nodes n ON rs.node_id = n.node_id
-        GROUP BY f.vehicle_id, f.capacity_units, f.max_shift_min
-        ORDER BY f.vehicle_id
-    """, [run_id]).fetchall()
-        con.close()
+    """Read current fleet metrics from DB for the right panel.
+
+    On Windows, DuckDB occasionally holds the file lock for a few
+    hundred ms after con.close() returns (the previous tick's
+    dispatch-agent write or solver subprocess can leave a dangling
+    lock).  Retry the read-only open briefly before giving up so a
+    transient lock doesn't kill the daemon.
+    """
+    last_err: Exception | None = None
+    for attempt in range(5):
+        try:
+            with _db_lock:
+                con = duckdb.connect(DB_PATH, read_only=True)
+                try:
+                    rows = con.execute("""
+                    SELECT
+                        f.vehicle_id,
+                        COUNT(rs.node_id) FILTER (WHERE rs.node_id != 0) AS customer_stops,
+                        COALESCE(SUM(n.demand_units), 0) AS demand_served,
+                        f.capacity_units,
+                        COALESCE(MAX(rs.departure_time) - MIN(rs.arrival_time), 0) AS active_min,
+                        f.max_shift_min
+                    FROM fleet f
+                    LEFT JOIN route_solutions rs ON f.vehicle_id = rs.vehicle_id AND rs.run_id = ?
+                    LEFT JOIN nodes n ON rs.node_id = n.node_id
+                    GROUP BY f.vehicle_id, f.capacity_units, f.max_shift_min
+                    ORDER BY f.vehicle_id
+                """, [run_id]).fetchall()
+                finally:
+                    con.close()
+            return [
+                {
+                    "vehicle_id": r[0],
+                    "stops": r[1],
+                    "demand": r[2],
+                    "capacity": r[3],
+                    "load_pct": round(r[2] / r[3] * 100) if r[3] > 0 else 0,
+                    "active_min": int(r[4]),
+                    "shift_pct": round(r[4] / r[5] * 100) if r[5] > 0 else 0,
+                }
+                for r in rows
+            ]
+        except duckdb.IOException as e:
+            last_err = e
+            time.sleep(0.3)
+    # All retries exhausted — return last known good state, but log once.
+    print(f"  [Telemetry] read_fleet_state failed: {last_err}", file=sys.stderr)
+    return []
 
     return [
         {
@@ -456,13 +532,12 @@ def _locked_query(sql: str, params: list | None = None) -> list:
 
 
 def main():
-    from agents.graph import compile_graph
     from rich.console import Console
-    from rich.live import Live
 
     console = Console()
     layout = build_ui()
-    app = compile_graph(with_telemetry=True)
+    # No LangGraph compilation here — see run_tick() for rationale.
+    app = None
 
     tick_count = 0
     resolver_count = 0
@@ -475,47 +550,65 @@ def main():
     )
     current_run_id = init_rows[0][0] if init_rows else ""
 
-    with Live(layout, console=console, refresh_per_second=4, screen=True):
-        while _running:
-            tick_start = time.time()
+    # Main-thread redraw: Rich Live (any mode) crashes on Python 3.11
+    # + Windows because its background render thread hits
+    # "PyEval_SaveThread: GIL released" in threading.wait.  We render
+    # the same multi-panel layout in the main thread by clearing the
+    # screen with ANSI codes and reprinting the layout.  Visually
+    # identical to Rich Live, but no background threads.
+    while _running:
+        tick_start = time.time()
 
-            try:
-                # run_tick acquires _db_lock internally for all DB ops
-                result = run_tick(app)
-            except Exception as e:
-                agent_log_lines.append(f"[ERROR] Tick failed: {e}")
-                result = None
+        try:
+            # run_tick acquires _db_lock internally for all DB ops
+            result = run_tick(app)
+        except Exception as e:
+            agent_log_lines.append(f"[ERROR] Tick failed: {e}")
+            result = None
 
-            if result is not None:
-                tick_count += 1
-                if result["solver_triggered"]:
-                    resolver_count += 1
-                current_run_id = result["run_id"]
+        if result is not None:
+            tick_count += 1
+            if result["solver_triggered"]:
+                resolver_count += 1
+            current_run_id = result["run_id"]
 
-                # Read fleet state under lock
-                fleet_state = read_fleet_state(None, current_run_id)
+            # Read fleet state under lock
+            fleet_state = read_fleet_state(None, current_run_id)
 
-                render_tick(layout, result, tick_count, resolver_count,
-                            agent_log_lines, fleet_state)
-            else:
-                ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
-                from rich.text import Text
-                idle_text = (
-                    f"HERMES MISSION CONTROL  |  SYSTEM STATUS: ONLINE  |  "
-                    f"TICK: #{tick_count}  |  "
-                    f"Last active: {ts} UTC  |  Waiting for events..."
+            render_tick(layout, result, tick_count, resolver_count,
+                        agent_log_lines, fleet_state)
+        else:
+            ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+            from rich.text import Text
+            from rich.panel import Panel
+            idle_text = (
+                f"HERMES MISSION CONTROL  |  SYSTEM STATUS: ONLINE  |  "
+                f"TICK: #{tick_count}  |  "
+                f"Last active: {ts} UTC  |  Waiting for events..."
+            )
+            layout["header"].update(
+                Panel(
+                    Text(idle_text, style="bold white on dark_blue"),
+                    style="dark_blue",
                 )
-                layout["header"].update(
-                    __import__("rich.panel", fromlist=["Panel"]).Panel(
-                        Text(idle_text, style="bold white on dark_blue"),
-                        style="dark_blue",
-                    )
-                )
+            )
 
-            elapsed = time.time() - tick_start
-            sleep_time = max(0, TICK_INTERVAL_S - elapsed)
-            if sleep_time > 0 and _running:
-                time.sleep(sleep_time)
+        # CSI 2J = clear screen, CSI H = cursor home
+        # Reprint the layout in the main thread.
+        sys.stdout.write("\x1b[2J\x1b[H")
+        sys.stdout.flush()
+        console.print(layout)
+
+        elapsed = time.time() - tick_start
+        sleep_time = max(0, TICK_INTERVAL_S - elapsed)
+        if sleep_time > 0 and _running:
+            time.sleep(sleep_time)
+
+        # Force GC between ticks — LangGraph's thread pool leaves
+        # dangling thread state on Windows + Python 3.11, which
+        # corrupts the next iteration.  Collecting cleans it up.
+        import gc
+        gc.collect()
 
     console.print(f"\n[bold]Telemetry stopped.[/] {tick_count} ticks, {resolver_count} re-solves.")
 

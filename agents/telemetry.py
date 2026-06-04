@@ -9,16 +9,15 @@ and decisions. Writes one row per agent invocation to agent_logs.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Callable
 
 import duckdb
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from agents.db_lock import db_lock
+from agents.llm_client import MODEL_REGISTRY
 
 DB_PATH = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
 
@@ -64,12 +63,12 @@ def _extract_sla_risk_summary(state: dict) -> tuple[str, str]:
 def _extract_rerouting_summary(state: dict) -> tuple[str, str]:
     """Return (output_summary, decision) for the Rerouting Agent."""
     d = state.get("rerouting_decision", {})
-    should = d.get("should_resolv", False)
+    should = d.get("should_resolve", False)
     strategy = d.get("strategy", "hold")
     urgency = d.get("urgency", "monitor_only")
     reason = d.get("reason", "")
     summary = f"strategy={strategy}, urgency={urgency}, reason={reason[:200]}"
-    decision = f"resolv={should}, {strategy}"
+    decision = f"resolve={should}, {strategy}"
     return summary, decision
 
 
@@ -101,15 +100,19 @@ _SUMMARY_EXTRACTORS: dict[str, Callable[[dict], tuple[str, str]]] = {
 
 
 # ---------------------------------------------------------------------------
-# Model name mapping (matches llm_client.py aliases)
+# Model name mapping (graph node → MODEL_REGISTRY key)
 # ---------------------------------------------------------------------------
+#
+# Keys are graph node names (DB-continuity). Values are pulled from
+# MODEL_REGISTRY in agents.llm_client. The "classification" graph node
+# maps to the "ingestion" registry role — same agent, two names.
 
 _AGENT_MODELS: dict[str, str] = {
-    "monitoring":     "llama-3.1-8b-instant",
-    "classification": "llama-3.1-8b-instant",
-    "sla_risk":       "llama-3.3-70b-versatile",
-    "rerouting":      "xiaomi/mimo-v2.5-pro",
-    "dispatch":       "llama-3.3-70b-versatile",
+    "monitoring":     MODEL_REGISTRY["monitoring"],
+    "classification": MODEL_REGISTRY["ingestion"],
+    "sla_risk":       MODEL_REGISTRY["sla_risk"],
+    "rerouting":      MODEL_REGISTRY["rerouting"],
+    "dispatch":       MODEL_REGISTRY["dispatch"],
 }
 
 

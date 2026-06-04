@@ -8,7 +8,6 @@ No agent shares mutable data through any other channel.
 
 from __future__ import annotations
 
-from typing import Any, Optional
 from typing_extensions import TypedDict
 
 
@@ -42,7 +41,7 @@ class HermesState(TypedDict):
     sla_risk_report:     dict           # {overall_risk, at_risk_nodes, reasoning}
 
     # ── Rerouting Agent outputs ───────────────────────────────────────────
-    rerouting_decision:  dict           # {should_resolv, reason, affected_vehicles}
+    rerouting_decision:  dict           # {should_resolve, reason, affected_vehicles}
 
     # ── Dispatch Agent outputs ────────────────────────────────────────────
     dispatch_brief:      str            # final plain-language brief for operators

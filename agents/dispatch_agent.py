@@ -16,62 +16,25 @@ Responsibility:
   This agent also writes the final record to processed_events in DuckDB,
   closing the loop on every event that was observed in this cycle.
 
-Model: DISPATCH_MODEL — google/gemma-4-31b:free
+Model: google/gemma-3n-e2b-it (via MODEL_REGISTRY["dispatch"])
 """
 
 from __future__ import annotations
 
 import json
 import os
-import sys
 from datetime import datetime
+from pathlib import Path
 
 import duckdb
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from agents.db_lock import db_lock
-from agents.llm_client import DISPATCH_MODEL, complete
+from agents.llm_client import MODEL_REGISTRY, complete
 from agents.state import HermesState
 
 DB_PATH = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
 
-SYSTEM_PROMPT = """You are the Dispatch Recommendation Agent for HERMES, an AI-powered logistics platform.
-
-You are the final voice of the system. Your output is read directly by human dispatchers and operations managers making real-time decisions.
-
-You receive a complete operational picture:
-- Monitoring summary (what was observed)
-- Classified events (what happened and how serious)
-- SLA risk report (what is at risk and why)
-- Rerouting decision (what the system recommends)
-
-Write a structured operations brief. It must follow this exact format:
-
-SITUATION
-[2-3 sentences: what is happening right now in the field]
-
-SLA RISK
-[2-3 sentences: which deliveries are at risk, which vehicles are implicated, and the risk score]
-
-SYSTEM RECOMMENDATION
-[1-2 sentences: what the system has decided (re-solve or hold) and why]
-
-IMMEDIATE ACTIONS
-[Numbered list of 2-4 specific actions the dispatcher should take right now]
-
-STATUS
-[One word or phrase: NOMINAL / ELEVATED / CRITICAL / RE-OPTIMISING]
-
-Rules:
-- Be direct. Dispatchers do not have time for hedging language.
-- Use vehicle IDs (VH-001) and node IDs where relevant.
-- If human approval is required before re-solving, state it explicitly in IMMEDIATE ACTIONS.
-- If the system recommends holding, explain what to watch for.
-- Do not use bullet points for SITUATION, SLA RISK, or SYSTEM RECOMMENDATION — prose only.
-- IMMEDIATE ACTIONS must be numbered and actionable (verb-first sentences).
-
-Return only the brief. No preamble."""
+SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "dispatch.txt").read_text(encoding="utf-8")
 
 
 def run(state: HermesState) -> HermesState:
@@ -97,21 +60,24 @@ def run(state: HermesState) -> HermesState:
     brief = complete(
         system_prompt=SYSTEM_PROMPT,
         user_message=user_message,
-        model=DISPATCH_MODEL,
-        max_tokens=800,
+        model=MODEL_REGISTRY["dispatch"],
+        max_tokens=300,
     )
+
+    # The dispatch brief is free-form text (SITUATION / SLA RISK / ... / STATUS),
+    # not a JSON object, so we don't run Pydantic validation here. We do enforce
+    # a length envelope and a safe fallback for empty responses. See
+    # agents/schemas.py::DispatchOutput for the strict-shape variant.
+    brief = (brief or "").strip()
+    if not brief:
+        brief = "Dispatch brief unavailable — LLM returned empty response."
+    elif len(brief) > 4000:
+        brief = brief[:4000]
 
     state["dispatch_brief"] = brief
 
     # -- Write processed_events back to DuckDB ----------------------------
     _persist_processed_events(state)
-
-    print(f"  [Dispatch]       Brief generated ({len(brief)} chars)")
-    print("\n" + "=" * 60)
-    print("HERMES DISPATCH BRIEF")
-    print("=" * 60)
-    print(brief)
-    print("=" * 60 + "\n")
 
     return state
 
@@ -156,6 +122,5 @@ def _persist_processed_events(state: HermesState) -> None:
                 rows,
             )
             con.close()
-        print(f"  [Dispatch]       {len(rows)} events written to processed_events")
-    except Exception as e:
-        print(f"  [Dispatch]       DB write warning: {e}")
+    except Exception:
+        pass

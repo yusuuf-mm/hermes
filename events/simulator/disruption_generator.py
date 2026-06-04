@@ -16,22 +16,25 @@ from __future__ import annotations
 import json
 import os
 import random
-import sys
 import time
 from datetime import datetime
 
 import duckdb
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
 from events.simulator.event_schemas import (
     EventType,
-    FailedDeliveryEvent, FailedDeliveryPayload,
-    LiveOrderEvent, LiveOrderPayload,
-    RouteDeviationEvent, RouteDeviationPayload,
-    TrafficDisruptionEvent, TrafficDisruptionPayload,
-    VehicleBreakdownEvent, VehicleBreakdownPayload,
-    VehicleTelemetryEvent, VehicleTelemetryPayload,
+    FailedDeliveryEvent,
+    FailedDeliveryPayload,
+    LiveOrderEvent,
+    LiveOrderPayload,
+    RouteDeviationEvent,
+    RouteDeviationPayload,
+    TrafficDisruptionEvent,
+    TrafficDisruptionPayload,
+    VehicleBreakdownEvent,
+    VehicleBreakdownPayload,
+    VehicleTelemetryEvent,
+    VehicleTelemetryPayload,
 )
 
 random.seed()   # non-deterministic for simulation realism

@@ -22,7 +22,6 @@ from datetime import datetime
 import duckdb
 from dotenv import load_dotenv
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 load_dotenv("config/.env" if os.path.exists("config/.env") else ".env",
             override=False)
 
@@ -155,7 +154,7 @@ def run():
     state = load_state(con)
     con.close()
 
-    print(f"\nLoaded state:")
+    print("\nLoaded state:")
     print(f"  Run ID        : {state['run_id']}")
     print(f"  Route stops   : {len(state['current_routes'])}")
     print(f"  Unprocessed   : {len(state['raw_events'])} events")
@@ -169,12 +168,12 @@ def run():
     from agents.graph import compile_graph
     app = compile_graph()
 
-    print(f"\nRunning agent graph...\n")
+    print("\nRunning agent graph...\n")
     final_state = app.invoke(state)
 
     # -- Post-graph: re-invoke solver if Rerouting Agent requested it ------
     decision = final_state.get("rerouting_decision", {})
-    if decision.get("should_resolv") and not decision.get("human_approval_required"):
+    if decision.get("should_resolve") and not decision.get("human_approval_required"):
         print("\n[!] Rerouting Agent triggered re-optimisation.")
         print("   Invoking solver...\n")
         import subprocess
@@ -188,11 +187,11 @@ def run():
         else:
             print("   Re-optimisation failed — check solver logs.")
 
-    elif decision.get("should_resolv") and decision.get("human_approval_required"):
+    elif decision.get("should_resolve") and decision.get("human_approval_required"):
         print("\n[!] Re-optimisation recommended but REQUIRES HUMAN APPROVAL.")
         print("   See dispatch brief above. No automatic re-solve triggered.")
 
-    print(f"\nAgent cycle complete.")
+    print("\nAgent cycle complete.")
 
 
 if __name__ == "__main__":

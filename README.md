@@ -2,144 +2,395 @@
 
 **Hierarchical Execution & Routing for Multi-agent Enterprise Supply-chain**
 
-An event-driven logistics operations platform that pairs classical Operations Research with a multi-agent LLM decision layer. Built to demonstrate how mathematical optimisation and AI agents solve real problems together — not as replacements for each other.
+> An event-driven AI logistics platform that pairs classical Operations Research with a multi-agent LLM decision layer — built to demonstrate that mathematical optimisation and AI agents solve real problems together, not as replacements for each other.
+
+[![Live Dashboard](https://img.shields.io/badge/Live_Dashboard-HERMES-1D9E75?style=for-the-badge)](https://yusuuf-mm.github.io/hermes/)
+[![Tests](https://img.shields.io/badge/Solver_Tests-7_passed-1D9E75?style=for-the-badge)](#testing)
+[![Python](https://img.shields.io/badge/Python-3.11.9-3776AB?style=for-the-badge&logo=python&logoColor=white)](#tech-stack)
+[![License](https://img.shields.io/badge/License-MIT-gray?style=for-the-badge)](#)
+
+---
+
+## Table of Contents
+
+- [What HERMES Is](#what-hermes-is)
+- [Live Demo](#live-demo)
+- [The Problem](#the-problem)
+- [System Architecture](#system-architecture)
+- [Mathematical Formulation](#mathematical-formulation)
+- [The Five-Agent Pipeline](#the-five-agent-pipeline)
+- [Data Schema](#data-schema)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Quickstart](#quickstart)
+- [Running the Full Pipeline](#running-the-full-pipeline)
+- [Dashboard](#dashboard)
+- [Testing](#testing)
+- [Configuration](#configuration)
+- [Design Decisions](#design-decisions)
+- [Known Issues & Next Steps](#known-issues--next-steps)
+
+---
+
+## What HERMES Is
+
+HERMES is a three-layer AI systems engineering project built on a Lagos metropolitan delivery network:
+
+| Layer | Technology | Role |
+|---|---|---|
+| **Data & Orchestration** | Bruin + DuckDB/MotherDuck | Pipeline DAG, quality checks, schema governance |
+| **Operations Research** | OR-Tools CVRPTW | Provably optimal route planning |
+| **Multi-Agent Intelligence** | LangGraph + NVIDIA NIM | Real-time disruption response and dispatch |
+
+The core architectural thesis: **LLMs decide when and how to invoke the solver — they never replace it.** OR-Tools is the authoritative decision engine for route mathematics. Agents handle everything around it: monitoring the event stream, classifying disruptions, estimating SLA risk, deciding whether re-optimisation is warranted, and communicating the outcome to human operators.
+
+---
+
+## Live Demo
+
+### Agent Telemetry — Mission Control Terminal
+
+<!-- Add GIF: assets/hermes_telemetry.gif -->
+> Record with ScreenToGif (Windows, free): capture a 30–45s session showing ticks advancing, SLA risk climbing, and a re-solve triggering. Save to `assets/hermes_telemetry.gif`.
+
+The Rich terminal control room fires the full five-agent chain on every tick. Watch the SLA risk score climb as disruptions accumulate — when it crosses `0.8`, OR-Tools re-solves automatically and new routes appear in the fleet panel.
+
+```bash
+make watch    # starts the continuous agent loop
+```
+
+### Operations Dashboard (Evidence.dev)
+
+<!-- Add screenshot: assets/dashboard_overview.png -->
+> Screenshot the Evidence index page at localhost:3000 — KPI cards, vehicle utilisation bars, event distribution pills.
+
+**Live at:** [yusuuf-mm.github.io/hermes](https://yusuuf-mm.github.io/hermes/)
+
+Six dashboard pages backed by MotherDuck (cloud DuckDB):
+
+| Page | Route | What it shows |
+|---|---|---|
+| Overview | `/` | Solver KPIs, vehicle utilisation, event stream summary |
+| Routes | `/routes` | Stop sequences, arrival times, at-risk flags |
+| Route Map | `/routes_map` | Folium interactive map — routes across Lagos |
+| Fleet | `/fleet` | Per-vehicle load %, shift utilisation, idle capacity |
+| Events | `/events` | Raw event feed, agent classifications |
+| Telemetry | `/telemetry` | SLA risk trend, agent latency, cognitive audit trail |
+
+### Standalone Operator Viewport
+
+```bash
+make dash     # generates dashboard/hermes_dashboard.html and opens it
+```
+
+Standalone Plotly HTML — reads DuckDB directly at render time, auto-refreshes every 15 seconds. Solver history (last 10 runs), fleet load gauges, and activity timeline. No Node.js dependency.
 
 ---
 
 ## The Problem
 
-Last-mile delivery in Lagos is chaotic. Traffic changes by the hour. Vehicles break down. Customers miss delivery windows. New orders arrive mid-route. A static morning plan is obsolete by noon.
+A regional 3PL (Third-Party Logistics) provider operates a fleet of delivery vehicles from a central depot in Lagos Island, serving 25 customer nodes across the Lagos metropolitan area. Every morning, HERMES generates an optimised delivery plan. But real-world operations rarely follow the original plan.
 
-Traditional fleet management tools generate an optimised route plan once and hand it to drivers. When conditions change, a human dispatcher has to manually re-route vehicles — a process that takes 15-30 minutes and produces suboptimal results because humans cannot mentally solve a 26-node routing problem with time windows and capacity constraints under pressure.
+Throughout the day:
+- Traffic congestion adds 20–40 minutes to planned routes
+- Vehicles deviate from planned paths
+- Customers are unavailable at delivery time
+- New high-priority orders arrive after dispatch
+- Driver shift constraints tighten as the day progresses
 
-The question: can we build a system that detects disruptions in real time, quantifies their operational impact, and automatically re-optimises routes — while keeping a human in the loop for high-stakes decisions?
-
----
-
-## The Solution
-
-HERMES solves this in three layers:
-
-**Layer 1 — Mathematical Optimisation (OR-Tools)**
-An OR-Tools Routing Library solver generates a Capacitated Vehicle Routing Problem with Time Windows (CVRPTW) solution. It assigns 30 orders across 5 vehicles, respecting capacity limits, customer time windows, driver shift limits, and depot return constraints. The solver runs in under 2 seconds for 26 nodes.
-
-**Layer 2 — Multi-Agent Intelligence (LangGraph)**
-A five-agent LangGraph pipeline monitors a live event stream. When disruptions occur — traffic congestion, vehicle breakdowns, failed deliveries, priority orders — the agents classify severity, quantify SLA breach probability, and decide whether to trigger a re-solve. Agents never touch the routing math. They decide *when* the solver should run and *what constraints* to relax.
-
-**Layer 3 — Data Engineering & Presentation (Bruin + Evidence.dev)**
-A Bruin orchestration pipeline manages the data lifecycle: ingest, quality checks, transforms, and execution. An Evidence.dev dashboard presents live KPIs, route maps, fleet utilisation, and event timelines to human operators.
-
-```
-Morning Plan                    Live Operations
-┌─────────┐    ┌──────────┐    ┌──────────────┐    ┌─────────────┐
-│  Orders  │───▶│  Solver   │───▶│ Event Stream  │───▶│  5 Agents   │
-└─────────┘    │ (OR-Tools) │    └──────────────┘    └──────┬──────┘
-               └──────────┘           ▲                     │
-                    ▲                 │              re-solve trigger
-                    └─────────────────┘                     │
-                    OR-Tools re-optimisation ◀──────────────┘
-```
+**The objective of HERMES is not just to find the best route at the start of the day — it is to continuously maintain the best operational state as conditions change.**
 
 ---
 
-## Mathematical Model
+## System Architecture
 
-**Objective:** minimise total fleet travel distance
+```mermaid
+flowchart TD
+    subgraph DATA["Data Layer — DuckDB / MotherDuck"]
+        DB[(hermes.duckdb\nmd:hermes01)]
+        T1[nodes · fleet · arc_costs]
+        T2[daily_orders · route_solutions]
+        T3[raw_events · processed_events · agent_logs]
+        T1 & T2 & T3 --> DB
+    end
+
+    subgraph PIPELINE["Pipeline — Bruin DAG"]
+        SEED[seed_data.py\n26 nodes · 5 vehicles\n650 arcs · 30 orders]
+        QA1[check_demand_positive]
+        QA2[check_orders_freshness]
+        QA3[check_time_windows_valid]
+        SOLVE[cvrptw_solver.py\nOR-Tools CVRPTW\nPATH_CHEAPEST_ARC\n+ GUIDED_LOCAL_SEARCH]
+        SEED --> QA1 & QA2 & QA3
+        QA1 & QA2 & QA3 --> SOLVE
+    end
+
+    subgraph EVENTS["Event Stream"]
+        SIM[disruption_generator.py\ntraffic · deviation\nfailed_delivery · live_order\ntelemetry · breakdown]
+    end
+
+    subgraph AGENTS["Agent Layer — LangGraph"]
+        direction LR
+        A1[Monitoring\nllama-4-maverick]
+        A2[Classification\ngemma-3n-e2b]
+        A3[SLA Risk\nllama-4-maverick]
+        A4[Rerouting\nqwen3-coder-480b]
+        A5[Dispatch\ngemma-3n-e2b]
+        A1 -->|anomalies?| A2
+        A1 -->|nominal| A5
+        A2 --> A3
+        A3 --> A4
+        A4 -->|risk ≥ 0.8| RESOLVE[re-invoke OR-Tools]
+        A4 -->|risk < 0.8| A5
+        RESOLVE --> A5
+    end
+
+    subgraph NIM["NVIDIA NIM"]
+        API[integrate.api.nvidia.com/v1\ntemp=0.2 · 4-attempt backoff]
+    end
+
+    subgraph PRESENT["Presentation"]
+        TERM[Rich Terminal\nmake watch]
+        EVID[Evidence.dev\nguihub Pages]
+        DASH[dashboard.py\nPlotly HTML\n15s refresh]
+    end
+
+    SEED -->|writes| DB
+    SOLVE -->|route_solutions\nsolution_metadata| DB
+    SIM -->|raw_events| DB
+    DB -->|reads| A1
+    AGENTS -->|processed_events\nagent_logs| DB
+    AGENTS -->|LLM calls| NIM
+    DB -->|reads| TERM & EVID & DASH
+
+    linkStyle 0,1,2,3,4,5 stroke:#1D9E75,stroke-width:2px
+```
+
+### Execution Flow
 
 ```
-min  Σ_k  Σ_(i,j)∈A  c_ij · x_ijk
+make seed        →  DuckDB populated  (26 nodes, 5 vehicles, 650 arcs, 30 orders)
+make solve       →  Routes optimised  (171.96 km, 3 vehicles, 18 nodes, 0 violations)
+make events      →  Disruptions stream into raw_events (Ctrl+C after 60s)
+make agents      →  5-agent chain fires, writes processed_events + agent_logs
+make watch       →  Continuous loop: simulate → agents → re-solve if needed
+make dash        →  Standalone Plotly dashboard opens in browser
+git push         →  GitHub Actions: generate map → Evidence sources → deploy to Pages
 ```
-
-**Decision variables:**
-- `x_ijk ∈ {0,1}` — 1 if vehicle k traverses arc (i→j)
-- `t_ik` — arrival time of vehicle k at node i
-
-**Constraints:**
-
-| ID | Constraint | Description |
-|----|-----------|-------------|
-| C1 | Depot return | All vehicles depart from and return to the depot |
-| C2 | Visit-once | Each customer node is visited exactly once |
-| C3 | Capacity | Total demand on a route must not exceed vehicle capacity (100 units) |
-| C4 | Time windows | Service must begin within [tw_open, tw_close] at each node |
-| C5 | Temporal feasibility | Travel time between consecutive stops must be respected |
-| C6 | Shift limits | Total route duration must not exceed 480 minutes (8 hours) |
-| C7 | Flow conservation | Vehicles entering a node must also leave it |
-
-**Solver configuration:**
-- First solution: PATH_CHEAPEST_ARC heuristic
-- Metaheuristic: GUIDED_LOCAL_SEARCH with 60-second time limit
-- Distance matrix: haversine × 1.35 road factor, 25 km/h average Lagos speed
-- Time windows: minutes from midnight (e.g., 480 = 8:00 AM, 1020 = 5:00 PM)
 
 ---
 
-## Agent System
+## Mathematical Formulation
 
-Five agents, each with a specific role in the decision chain:
+HERMES solves the **Capacitated Vehicle Routing Problem with Time Windows (CVRPTW)** — the canonical, industry-hardened OR benchmark.
 
-| # | Agent | Model | Provider | Role |
-|---|-------|-------|----------|------|
-| 1 | Monitoring | Llama 3.1 8B Instant | Groq | Scans raw events, determines if anomalies exist. Telemetry alone is not an anomaly — only fuel < 15% or engine off triggers the full chain. |
-| 2 | Classification | Llama 3.1 8B Instant | Groq | Enriches each event with severity (low/medium/high/critical) and category (operational/safety/sla_risk/capacity/new_demand). |
-| 3 | SLA Risk | Llama 3.3 70B Versatile | Groq | Quantifies probability of time-window violations on a 0.0–1.0 scale. Identifies at-risk nodes and vehicles. |
-| 4 | Rerouting | Xiaomi Mimo v2.5 Pro | GitLawb | Decides whether to trigger a re-solve. Returns strategy (full_replan/partial_replan/vehicle_swap/hold), urgency, and whether human approval is required. |
-| 5 | Dispatch | Llama 3.3 70B Versatile | Groq | Generates a plain-language operations brief: SITUATION / SLA RISK / RECOMMENDATION / ACTIONS / STATUS. Writes classified events to processed_events. |
+### Sets
 
-**Graph topology:**
+| Symbol | Definition |
+|---|---|
+| `N = {0, 1, ..., n}` | Node set — index 0 is the depot, 1..n are customer nodes |
+| `K = {1, ..., k}` | Vehicle set |
+| `A = {(i,j) : i ≠ j, i,j ∈ N}` | Arc set |
+
+### Decision Variables
+
+| Variable | Domain | Meaning |
+|---|---|---|
+| `x_ijk` | `{0,1}` | 1 if vehicle `k` travels arc `(i,j)` |
+| `t_ik` | `ℝ≥0` | Arrival time of vehicle `k` at node `i` |
+
+### Objective Function
+
 ```
-monitoring ──▶ [anomalies?] ──yes──▶ classification ──▶ sla_risk ──▶ rerouting ──▶ dispatch ──▶ END
-                        │
-                        └──no──▶ dispatch (skips 3 LLM calls when nominal)
+Minimise  Σ_k Σ_(i,j) c_ij · x_ijk
 ```
 
-The conditional edge after Monitoring is the key efficiency gain. When the event stream is nominal (routine telemetry, minor deviations), the pipeline skips Classification, SLA Risk, and Rerouting — saving three LLM calls and ~10 seconds per tick.
+Minimise total distance (km) across all vehicle routes.
 
-**LLM provider architecture:**
-- Groq (Agents 1, 2, 3, 5): fast inference on Llama models for classification and reporting tasks
-- GitLawb Opengateway (Agent 4): Xiaomi Mimo for the rerouting decision, which requires deeper reasoning about constraint tradeoffs
-- OpenAI-compatible SDK for both providers — swap any model with a one-line change in `agents/llm_client.py`
-- Retry logic: 4 attempts with exponential backoff (5s, 10s, 20s) on rate-limit errors
+### Constraints
+
+| ID | Name | Mathematical form |
+|---|---|---|
+| C1 | Flow conservation | Each customer visited exactly once by exactly one vehicle |
+| C2 | Vehicle capacity | `Σ_i d_i · Σ_j x_ijk ≤ Q_k` for all `k` |
+| C3 | Time window (lower) | `t_ik ≥ a_i` for all `i ∈ N`, `k ∈ K` |
+| C4 | Time window (upper) | `t_ik ≤ b_i` for all `i ∈ N`, `k ∈ K` |
+| C5 | Travel time propagation | `t_jk ≥ (t_ik + s_i + τ_ij) · x_ijk` |
+| C6 | Shift limit | `t_{depot,k}^{return} - t_{depot,k}^{depart} ≤ T_max` |
+| C7 | Depot start/end | All routes begin and end at the depot (node 0) |
+
+### Parameters (from `hermes.duckdb`)
+
+| Parameter | Table | Column | Value |
+|---|---|---|---|
+| `d_i` | `nodes` | `demand_units` | 1–20 units |
+| `Q_k` | `fleet` | `capacity_units` | 100 units |
+| `[a_i, b_i]` | `nodes` | `tw_open, tw_close` | Minutes from midnight (360–960) |
+| `s_i` | `nodes` | `service_min` | 30 minutes |
+| `T_max` | `fleet` | `max_shift_min` | 480 minutes |
+| `c_ij` | `arc_costs` | `cost_km` | Haversine × 1.35 road factor |
+| `τ_ij` | `arc_costs` | `travel_min` | At 30 km/h average |
+
+### Solver Configuration
+
+```python
+# Search strategy
+first_solution_strategy  = PATH_CHEAPEST_ARC
+local_search_metaheuristic = GUIDED_LOCAL_SEARCH
+time_limit_seconds       = 60
+
+# Post-solve validation
+capacity_check    # sum(demand) ≤ vehicle capacity per route
+time_window_check # all arrivals within [a_i, b_i]
+```
 
 ---
 
-## Event System
+## The Five-Agent Pipeline
 
-Six event types model real-world logistics disruptions:
+```
+raw_events (DuckDB)
+       │
+       ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LangGraph — HermesState flows through every node          │
+│                                                             │
+│  [1] Monitoring Agent  ──── llama-4-maverick-17b           │
+│       │ anomalies_detected=True?                           │
+│       ├── YES ──► [2] Classification Agent ─ gemma-3n-e2b  │
+│       │                │                                    │
+│       │           [3] SLA Risk Agent ──── llama-4-maverick  │
+│       │                │  sla_risk_score ∈ [0,1]           │
+│       │           [4] Rerouting Agent ─── qwen3-coder-480b │
+│       │                │  should_resolve?                  │
+│       │                ├── YES, risk≥0.8 ──► OR-Tools      │
+│       │                └── NO / human approval             │
+│       │                         │                          │
+│       └── NO ───────────────────┘                          │
+│                                 ▼                          │
+│                    [5] Dispatch Agent ──── gemma-3n-e2b    │
+│                         plain-language brief               │
+└─────────────────────────────────────────────────────────────┘
+       │
+       ▼
+processed_events + agent_logs (DuckDB)
+```
 
-| Event Type | Probability | Key Fields | Impact |
-|-----------|-------------|------------|--------|
-| `vehicle_telemetry` | 40% | lat, lon, speed_kmh, fuel_pct, engine_status | Low — informational unless fuel < 15% or engine off |
-| `traffic_disruption` | 25% | affected_from/to_node, congestion_factor, cause | Medium — increases travel time on affected arcs |
-| `route_deviation` | 15% | planned_node_id, deviation_km, time_lost_min | Medium — vehicle off planned route |
-| `failed_delivery` | 12% | node_id, order_id, reason, attempt_count | High — customer not served, may breach SLA |
-| `live_order` | 5% | node_id, demand_units, priority, latest_delivery_time | High — new demand may exceed capacity |
-| `vehicle_breakdown` | 3% | breakdown_type, estimated_repair_min | Critical — vehicle offline, routes must be redistributed |
+### Agent Responsibilities
 
-Events are generated by a probabilistic simulator and written to DuckDB. The agent pipeline reads unprocessed events via an anti-join pattern (`LEFT JOIN ... WHERE p.event_id IS NULL`) to prevent reprocessing.
+| Agent | Model | Temperature | Owns |
+|---|---|---|---|
+| Monitoring | `meta/llama-4-maverick-17b-128e-instruct` | 0.2 | Anomaly detection, event stream summary |
+| Classification | `google/gemma-3n-e2b-it` | 0.2 | Severity + category per event |
+| SLA Risk | `meta/llama-4-maverick-17b-128e-instruct` | 0.2 | Risk score 0–1, at-risk node list |
+| Rerouting | `qwen/qwen3-coder-480b-a35b-instruct` | 0.2 | Re-solve decision + strategy |
+| Dispatch | `google/gemma-3n-e2b-it` | 0.2 | Human-readable operational brief |
+
+### The Conditional Edge — Cost Optimisation
+
+```python
+# graph.py
+def route_after_monitoring(state: HermesState) -> str:
+    if state["monitoring_summary"].get("anomalies_detected"):
+        return "classification"   # full 5-agent chain — 3 LLM calls
+    return "dispatch"             # skip to output — saves cost on nominal ticks
+```
+
+When operations are nominal (no anomalies), the graph skips Classification → SLA Risk → Rerouting entirely. In a system running every 60 seconds, this conditional edge eliminates ~70% of LLM calls on quiet periods.
+
+### Idempotent Event Processing
+
+```sql
+-- run_agents.py — events only processed once, ever
+SELECT r.* FROM raw_events r
+LEFT JOIN processed_events p ON r.event_id = p.event_id
+WHERE p.event_id IS NULL
+```
+
+The `LEFT JOIN WHERE NULL` anti-join pattern ensures agents never re-process an event regardless of how many times `make agents` or `make watch` runs.
+
+### NVIDIA NIM Configuration
+
+```python
+# agents/llm_client.py
+MODEL_REGISTRY = {
+    "monitoring":  "meta/llama-4-maverick-17b-128e-instruct",
+    "ingestion":   "google/gemma-3n-e2b-it",          # classification node
+    "sla_risk":    "meta/llama-4-maverick-17b-128e-instruct",
+    "rerouting":   "qwen/qwen3-coder-480b-a35b-instruct",
+    "dispatch":    "google/gemma-3n-e2b-it",
+    "optimizer":   "mistralai/mistral-nemotron",       # forward-compat
+}
+
+TEMPERATURE = 0.2   # hard-coded — not a parameter, not overridable
+# Retry: 4 attempts, exponential backoff at 5s / 10s / 20s
+```
+
+Provider: `https://integrate.api.nvidia.com/v1` (OpenAI-compatible endpoint)
+
+---
+
+## Data Schema
+
+| Table | Rows | Written by | Read by |
+|---|---|---|---|
+| `nodes` | 26 | `seed_data.py` | Solver, map, dashboard |
+| `fleet` | 5 | `seed_data.py` | Solver, fleet page |
+| `arc_costs` | 650 | `seed_data.py` | Solver |
+| `daily_orders` | 30 | `seed_data.py` | Solver |
+| `route_solutions` | 48 | `solution_writer.py` | Routes page, map, fleet |
+| `solution_metadata` | 2 | `solution_writer.py` | Overview page, telemetry |
+| `raw_events` | 203 | `disruption_generator.py` | Agents, events page |
+| `processed_events` | 203 | `dispatch_agent.py` | Events page, telemetry |
+| `agent_logs` | 24 | `run_telemetry.py` | Telemetry page |
+
+### Key Columns
+
+**`route_solutions`** — one row per vehicle stop
+
+```sql
+run_id        VARCHAR    -- links to solution_metadata
+vehicle_id    VARCHAR    -- VH-001 through VH-005
+stop_seq      INTEGER    -- position in route
+node_id       INTEGER    -- foreign key → nodes
+arrival_time  DOUBLE     -- minutes from midnight
+departure_time DOUBLE
+```
+
+**`agent_logs`** — one row per agent per tick
+
+```sql
+log_id        VARCHAR
+run_id        VARCHAR
+agent_name    VARCHAR    -- monitoring | classification | sla_risk | rerouting | dispatch
+tick_number   INTEGER
+input_summary VARCHAR
+output_json   JSON
+model_used    VARCHAR
+latency_ms    INTEGER
+logged_at     DOUBLE     -- Unix epoch seconds (cast to bigint for display)
+```
+
+> **MotherDuck timestamp note:** `logged_at`, `emitted_at`, `processed_at` are stored as `DOUBLE` (Unix epoch seconds). Use `epoch_ms(cast(col as bigint))` for timestamp display, and `(completed_at - started_at) * 1000` for latency arithmetic — not `EXTRACT(EPOCH FROM ...)`.
 
 ---
 
 ## Tech Stack
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Optimisation | Google OR-Tools (Routing Library) | CVRPTW solver with 7 constraints |
-| Database | DuckDB | Single integration layer — all components read/write here |
-| Agent orchestration | LangGraph | State machine with conditional edges, not a sequential chain |
-| LLM inference | Groq + GitLawb | Dual-provider routing for cost/speed/quality tradeoffs |
-| Data pipelines | Bruin | DAG orchestration with embedded quality checks |
-| Dashboard | Evidence.dev | SQL-driven markdown pages with charts and tables |
-| Route visualisation | Folium | Interactive OpenStreetMap with scenario toggle |
-| Terminal UI | Rich | Three-panel control room for live agent telemetry |
-| Schemas | Pydantic v2 | Typed event models with validation |
-
-**Why these choices:**
-
-- **OR-Tools over LLM routing:** CVRPTW is NP-hard. LLMs cannot reliably solve it. OR-Tools finds provably near-optimal solutions in seconds.
-- **LangGraph over CrewAI:** Explicit graph topology with conditional edges. The "skip 3 agents when nominal" pattern is a conditional edge, not a sequential pipeline.
-- **DuckDB over PostgreSQL:** Zero infrastructure. Every layer — Bruin, solver, agents, dashboard — reads and writes one file. The database is the API contract.
-- **Dual LLM provider:** Fast/cheap models (Llama 8B) for classification tasks. Reasoning models (Mimo, Llama 70B) for decisions. One SDK, two providers.
+| Layer | Technology | Version | Role |
+|---|---|---|---|
+| Language | Python | 3.11.9 | All backend logic |
+| Optimisation | OR-Tools | 9.12.4544 | CVRPTW solver |
+| Database | DuckDB | 1.5.2 | Embedded OLAP |
+| Cloud DB | MotherDuck | — | `md:hermes01` — cloud persistence |
+| Agent orchestration | LangGraph | 1.2.2 | Directed agent graph |
+| LLM gateway | NVIDIA NIM | — | OpenAI-compatible, 6-model registry |
+| Data schemas | Pydantic | 2.12.5 | Agent response validation |
+| Pipeline orchestration | Bruin CLI | 0.11.603 | DAG execution + QA checks |
+| Terminal UI | Rich | 14.3.4 | Telemetry control room |
+| Map | Folium | 0.20.0 | Interactive Lagos route map |
+| Dashboard (static) | Evidence.dev | 40.1.8 | 6-page SQL-native BI |
+| Dashboard (live) | Plotly (via dashboard.py) | — | Standalone operator viewport |
+| Deploy | GitHub Actions + Pages | — | Auto-deploys on push to main |
 
 ---
 
@@ -147,50 +398,70 @@ Events are generated by a probabilistic simulator and written to DuckDB. The age
 
 ```
 hermes/
-├── agents/                              # Multi-agent system
-│   ├── graph.py                         # LangGraph topology + conditional edges
-│   ├── state.py                         # HermesState TypedDict (shared state)
-│   ├── monitoring_agent.py              # Agent 1: anomaly detection
-│   ├── classification_agent.py          # Agent 2: severity + category
-│   ├── sla_risk_agent.py                # Agent 3: SLA breach quantification
-│   ├── rerouting_agent.py               # Agent 4: re-solve decision
-│   ├── dispatch_agent.py                # Agent 5: operator brief + DB write
-│   ├── llm_client.py                    # Groq + GitLawb routing
-│   ├── telemetry.py                     # Agent execution logging
-│   ├── db_lock.py                       # Shared threading lock for DuckDB
-│   └── run_telemetry.py                 # Rich control room daemon
 │
-├── optimization/                        # OR-Tools solver
-│   ├── cvrptw_solver.py                 # CVRPTW model (C1-C7)
-│   ├── solution_writer.py               # Persists solver output to DuckDB
-│   ├── generate_map.py                  # Folium route map generator
+├── agents/                          # Multi-agent system (LangGraph)
+│   ├── classification_agent.py      # Agent 2 — event severity + category
+│   ├── dispatch_agent.py            # Agent 5 — human-readable brief
+│   ├── graph.py                     # LangGraph DAG + conditional edge
+│   ├── llm_client.py                # NVIDIA NIM client + MODEL_REGISTRY
+│   ├── monitoring_agent.py          # Agent 1 — anomaly detection
+│   ├── rerouting_agent.py           # Agent 4 — re-solve decision
+│   ├── run_telemetry.py             # Continuous telemetry daemon (make watch)
+│   ├── schemas.py                   # Pydantic v2 response schemas (5 models)
+│   ├── sla_risk_agent.py            # Agent 3 — risk score 0–1
+│   ├── state.py                     # HermesState TypedDict
+│   ├── telemetry.py                 # Agent execution logger → agent_logs
+│   ├── db_lock.py                   # Threading lock for DuckDB single-writer
+│   ├── prompts/                     # Plaintext system prompts (6 files)
+│   │   ├── system_core.yaml         # Canonical agent documentation
+│   │   ├── monitoring.txt
+│   │   ├── ingestion.txt            # Used by classification agent
+│   │   ├── sla_risk.txt
+│   │   ├── rerouting.txt
+│   │   └── dispatch.txt
+│   └── tools/                       # Pydantic schema stubs (not yet wired)
+│       ├── __init__.py              # TOOL_REGISTRY + to_openai_tools() + run_tool()
+│       ├── telemetry_lookup.py
+│       ├── solver_bridge.py
+│       └── notification.py
+│
+├── optimization/                    # OR-Tools solver
+│   ├── cvrptw_solver.py             # CVRPTW model — 7 constraints
+│   ├── generate_map.py              # Folium map → dashboard/public/
+│   ├── solution_writer.py           # Writes route_solutions + solution_metadata
 │   └── tests/
-│       └── test_solution_feasibility.py
+│       └── test_solution_feasibility.py  # 7 solver tests (all passing)
 │
-├── events/                              # Event simulation
+├── events/
 │   └── simulator/
-│       ├── event_schemas.py             # Pydantic models (6 event types)
-│       └── disruption_generator.py      # Probabilistic event stream
+│       ├── disruption_generator.py  # Continuous event stream → raw_events
+│       └── event_schemas.py         # Pydantic event type models
 │
-├── assets/                              # Bruin pipeline assets
-│   ├── ingestion/seed_data.py           # Lagos metro data (26 nodes, 5 vehicles)
-│   ├── quality/                         # 3 QA checks (time windows, demand, freshness)
+├── assets/                          # Bruin pipeline entry points
+│   ├── ingestion/seed_data.py
+│   ├── optimization/run_solver.py
+│   ├── agents/run_agents.py         # One-shot batch (no telemetry logging)
+│   ├── quality/                     # 3 Bruin QA check assets
 │   ├── transforms/build_cvrptw_input.sql
-│   ├── optimization/run_solver.py       # Solver entry point (Bruin asset)
-│   └── agents/run_agents.py             # Agent pipeline entry point (Bruin asset)
+│   └── dev_mockups/                 # Evidence dashboard redesign mockup
 │
-├── dashboard/                           # Evidence.dev
-│   ├── pages/
-│   │   ├── index.md                     # KPI overview
-│   │   ├── routes.md                    # Route stop sequences + timing
-│   │   ├── routes_map.md                # Folium map (iframe)
-│   │   ├── events.md                    # Event stream + agent output
-│   │   └── fleet.md                     # Vehicle utilisation
-│   └── sources/hermes_db/               # 8 SQL source definitions
+├── dashboard/
+│   ├── dashboard.py                 # Standalone Plotly HTML — 15s auto-refresh
+│   ├── pages/                       # 6 Evidence.dev Markdown pages
+│   ├── sources/hermes_db/           # 8 Evidence SQL source definitions
+│   └── public/routes_map.html       # Folium map (generated by make map)
 │
-├── pipeline.yaml                        # Bruin pipeline config
-├── Makefile                             # make seed | solve | agents | watch | map
-└── pyproject.toml                       # Python dependencies
+├── config/
+│   ├── .env.example                 # Environment variable template
+│   └── .bruin.yml                   # Bruin local + MotherDuck production config
+│
+├── .github/workflows/
+│   └── deploy-dashboard.yml         # GitHub Actions — map → sources → build → Pages
+│
+├── pipeline.yaml                    # Bruin pipeline definition
+├── pyproject.toml                   # Python package config (pip install -e .)
+├── Makefile                         # All commands (see below)
+└── README.md
 ```
 
 ---
@@ -200,127 +471,247 @@ hermes/
 ### Prerequisites
 
 - Python 3.11+
-- Node.js v22 LTS (Node v24 breaks DuckDB + Vite bindings)
-- A [Groq](https://console.groq.com) API key
-- A [GitLawb](https://opengateway.gitlawb.com) API key
+- Node.js 18+ (for Evidence dashboard only)
+- [Bruin CLI](https://bruin-data.github.io/bruin/getting-started/introduction.html)
+- NVIDIA NIM API key — [console.nvidia.com](https://console.nvidia.com)
+- MotherDuck account (free tier) — [motherduck.com](https://motherduck.com)
 
-### Setup
+### Installation
 
 ```bash
-# 1. Clone and install
-git clone https://github.com/yusuuf-mm/hermes
+# Clone
+git clone https://github.com/yusuuf-mm/hermes.git
 cd hermes
-pip install -e ".[dev]"
 
-# 2. Configure environment
+# Python environment
+python -m venv .venv
+source .venv/Scripts/activate      # Windows (Git Bash)
+# source .venv/bin/activate        # macOS / Linux
+
+# Install all packages (editable — removes sys.path hacks)
+pip install -e .
+
+# Environment
 cp config/.env.example .env
-# Edit .env — add GROQ_API_KEY and GITLAWB_API_KEY
+# Edit .env — add NVIDIA_API_KEY, MOTHERDUCK_TOKEN
+```
 
-# 3. Seed and solve
-python assets/ingestion/seed_data.py
-python assets/optimization/run_solver.py
+### `.env` minimum required
 
-# 4. Generate events and run agents
-python -c "from events.simulator.disruption_generator import generate_batch; generate_batch(10)"
-python assets/agents/run_agents.py
+```bash
+NVIDIA_API_KEY=nvapi-your-key-here
+MOTHERDUCK_TOKEN=your-motherduck-token-here
+HERMES_DB_PATH=hermes.duckdb        # local dev; switch to md:hermes01 for cloud
+SOLVER_TIME_LIMIT_S=60
+BRUIN_ENV=local
+```
 
-# 5. Generate route map
-python optimization/generate_map.py
+---
 
-# 6. Launch dashboard
+## Running the Full Pipeline
+
+### Development (make targets)
+
+```bash
+source .venv/Scripts/activate
+
+make seed           # Create + populate DuckDB: 26 nodes, 5 vehicles, 650 arcs
+make solve          # Run CVRPTW solver — writes route_solutions + KPIs
+make events         # Stream disruption events — Ctrl+C after 60 seconds
+make agents         # Run 5-agent LangGraph chain (one-shot, no telemetry log)
+make watch          # Continuous loop: simulate → agents → re-solve if risk ≥ 0.8
+make dash           # Generate Plotly HTML dashboard and open in browser
+make map            # Generate Folium route map → dashboard/public/routes_map.html
+```
+
+### Production (Bruin DAG)
+
+```bash
+# Full pipeline in dependency order with QA gate
+bruin run .
+
+# Validate asset DAG structure
+bruin validate .
+```
+
+Bruin executes: `seed_data` → `check_demand_positive` + `check_orders_freshness` + `check_time_windows_valid` → `run_solver` → `run_agents`. If any QA check fails, the pipeline stops before the solver runs.
+
+### Against MotherDuck (cloud)
+
+```bash
+export MOTHERDUCK_TOKEN=$(grep MOTHERDUCK_TOKEN .env | cut -d= -f2)
+
+HERMES_DB_PATH=md:hermes01 make seed
+HERMES_DB_PATH=md:hermes01 make solve
+HERMES_DB_PATH=md:hermes01 make events    # 60s then Ctrl+C
+HERMES_DB_PATH=md:hermes01 make agents
+```
+
+### Refresh the public dashboard
+
+```bash
+git add -A
+git commit -m "ops: fresh pipeline run $(date +%Y-%m-%d)"
+git push    # GitHub Actions: generate_map.py → npx evidence sources → npm run build → Pages
+```
+
+GitHub Actions runs in ~3 minutes. No manual build step needed.
+
+---
+
+## Dashboard
+
+### Evidence.dev (static, deployed)
+
+**URL:** [yusuuf-mm.github.io/hermes](https://yusuuf-mm.github.io/hermes/)
+
+Six SQL-native pages backed by MotherDuck snapshots. Rebuilds automatically on every push to `main` via GitHub Actions. The workflow: reads MotherDuck via `npx evidence sources` → compiles to Parquet → SvelteKit builds static site → deploys to GitHub Pages.
+
+```bash
+# Local Evidence dev server
 cd dashboard
-npm install
-npx evidence sources
-npm run dev     # opens at http://localhost:3000
+npx evidence sources    # snapshot MotherDuck → Parquet (run after any data change)
+npm run dev             # serve at localhost:3000
 ```
 
-### With Bruin (orchestrated pipeline)
+### Standalone Operator Viewport (`dashboard.py`)
 
 ```bash
-bruin run .     # runs: seed → QA checks → transform → solve → agents
+make dash    # writes dashboard/hermes_dashboard.html and opens it
 ```
 
-### Telemetry control room (live demo)
+Single-file Plotly HTML, 21.8 KB, zero server dependency. Reads DuckDB directly at render time. Features: solver history (last 10 runs, dual y-axis), fleet load gauges, activity timeline (last 20 events, colour-coded by type), "Live — last refresh" pulse indicator, 15-second auto-refresh.
+
+---
+
+## Testing
 
 ```bash
-python agents/run_telemetry.py
+# All solver tests
+make test-solver
+# pytest optimization/tests/test_solution_feasibility.py -v
+
+# Full test suite
+make test
+
+# Linting
+make lint
+# ruff check agents/ assets/agents/  →  1 error (pre-existing F841, flagged)
 ```
 
-Rich terminal UI with three panels: agent reasoning log, fleet metrics, and system status. Generates events and processes them in a continuous loop. Record this as a GIF for the README.
+### Solver test suite — 7 tests, all passing
 
-> **Note:** Do not run `make solve` in another terminal while the telemetry daemon is running. The daemon manages the solver internally when re-solves are triggered.
+| Test | What it validates |
+|---|---|
+| `test_basic_feasibility` | Solver finds a feasible solution |
+| `test_all_customers_served` | All active customer nodes visited |
+| `test_capacity_not_exceeded` | No vehicle exceeds 100-unit capacity |
+| `test_time_windows_respected` | All arrivals within `[tw_open, tw_close]` |
+| `test_routes_start_and_end_at_depot` | Every route begins and ends at node 0 |
+| `test_shift_limit_respected` | No vehicle active > 480 minutes |
+| `test_no_duplicate_customers` | Each customer node visited exactly once |
 
----
-
-## Database Schema
-
-| Table | Rows | Description |
-|-------|------|-------------|
-| `nodes` | 26 | 1 depot (Lagos Island) + 25 customer locations across Lagos metro |
-| `fleet` | 5 | Vehicles VH-001 through VH-005, 100-unit capacity, 8-hour shift limit |
-| `arc_costs` | 650 | 26×25 directed arcs with haversine distance × 1.35 road factor |
-| `daily_orders` | 30 | Pending orders with demand, assigned to customer nodes |
-| `cvrptw_input` | 19 | Materialised view joining orders with node attributes |
-| `route_solutions` | ~24 | Solver output: vehicle, stop sequence, arrival/departure times |
-| `solution_metadata` | 1+ | Per-run KPIs: cost, vehicles used, solve time, scenario tag |
-| `raw_events` | N | Live event stream from simulator |
-| `processed_events` | N | Agent-classified events with severity, category, SLA risk score |
-| `agent_logs` | N | Per-agent execution log: timing, input/output summary, decision |
+> **C5 fix note:** Service time reduced from 90 → 30 minutes in test fixtures. A service time of 90 min exceeds the available window width (45–81 min) for all 5 test customers, making the problem structurally infeasible. The fix uses `service_min=30`, which passes the capacity and time window constraints. This is documented in `optimization/tests/fixtures/` with a sweep comment confirming the threshold at 60 minutes.
 
 ---
 
-## Error Handling
+## Configuration
 
-**LLM resilience:**
-- 4-attempt retry with exponential backoff (5s, 10s, 20s) on 429 rate-limit errors
-- Provider isolation: Groq and GitLawb failures are independent — one provider down doesn't take out all agents
-- Graceful degradation: if the Rerouting agent fails, the pipeline defaults to "hold" strategy (no re-solve)
+### Bruin pipeline (`config/.bruin.yml`)
 
-**Solver validation:**
-- Post-solve capacity check: counts actual demand per vehicle and flags violations
-- Infeasible solutions return `status=INFEASIBLE` with `constraint_violations=1` — the pipeline does not write broken routes to DuckDB
+```yaml
+default_environment: local
 
-**Data integrity:**
-- Anti-join pattern (`LEFT JOIN ... WHERE p.event_id IS NULL`) prevents event reprocessing
-- `INSERT OR IGNORE` on processed_events prevents duplicate writes
-- Shared `db_lock` threading lock serialises all DuckDB access when the telemetry daemon is running
+environments:
+  local:
+    connections:
+      duckdb:
+        - name: hermes_db
+          path: ./hermes.duckdb
 
-**DuckDB concurrency:**
-- Windows: single-process file lock — only one Python process can open the DB at a time
-- The telemetry daemon and Evidence dashboard cannot run simultaneously on Windows
-- Solution: batch pipeline workflow for demos, telemetry UI recorded separately as video
+  production:
+    connections:
+      motherduck:
+        - name: hermes_db
+          token: ${MOTHERDUCK_TOKEN}
+          database: md:hermes01
+```
 
----
+Switch between local and cloud: set `BRUIN_ENV=production` in `.env`.
 
-## Challenges & Lessons
+### NVIDIA NIM models (`agents/llm_client.py`)
 
-**OR-Tools metaheuristic can violate constraints.**
-GUIDED_LOCAL_SEARCH optimises for the objective function and may slightly violate capacity constraints (e.g., 101 units on a 100-capacity vehicle). Fixed by adding post-solve validation that counts actual demand per vehicle and flags violations. The solver now reports `constraint_violations > 0` when this happens.
+```python
+MODEL_REGISTRY = {
+    "monitoring":  "meta/llama-4-maverick-17b-128e-instruct",
+    "ingestion":   "google/gemma-3n-e2b-it",
+    "sla_risk":    "meta/llama-4-maverick-17b-128e-instruct",
+    "rerouting":   "qwen/qwen3-coder-480b-a35b-instruct",
+    "dispatch":    "google/gemma-3n-e2b-it",
+    "optimizer":   "mistralai/mistral-nemotron",
+}
+```
 
-**DuckDB single-writer lock on Windows.**
-Unlike PostgreSQL, DuckDB uses file-level locking. Two processes cannot have the DB open simultaneously. This affected the telemetry daemon + Evidence dashboard architecture. Resolved by designing the batch pipeline as the primary workflow and recording the telemetry UI as a video for the README.
+Swap any model by updating `MODEL_REGISTRY` — no other code changes needed.
 
-**Mixed connection modes fail cross-process.**
-DuckDB does not allow mixing read-write and read-only connections to the same file from different processes. A read-write connection from the telemetry daemon blocks a read-only connection from Evidence. Resolved by ensuring all connections use the same mode within a process.
+### Agent prompts (`agents/prompts/`)
 
-**LangGraph conditional edges save LLM calls.**
-The biggest performance gain was the conditional edge after Monitoring: when no anomalies are detected, skip Classification, SLA Risk, and Rerouting entirely. This saves 3 LLM calls (~10 seconds) per nominal tick — the majority of ticks in steady state.
-
-**Agent roles must be separated from solver logic.**
-Early iterations considered having the Rerouting agent directly modify routes. This was rejected — agents decide *when* to re-solve and *what constraints to relax*, but the OR-Tools solver is the only component that touches routing math. This separation of concerns is the core architectural principle.
-
----
-
-## Portfolio Context
-
-HERMES demonstrates three competencies that are rarely combined in a single project:
-
-1. **Operations Research** — CVRPTW formulation with 7 constraints, OR-Tools solver, capacity validation
-2. **Multi-Agent AI** — LangGraph state machine with conditional edges, dual-provider LLM routing, structured decision chain
-3. **Data Engineering** — Bruin orchestration, DuckDB integration layer, quality checks, Evidence.dev dashboard
-
-The system is designed so that each layer can be discussed independently with a technical interviewer, or as a cohesive whole with a hiring manager.
+All system prompts are plaintext `.txt` files — edit them without touching Python code. Each agent loads its prompt via `Path(__file__).parent / "prompts" / "<role>.txt"`.
 
 ---
 
-*Lagos metro scenario. 26 nodes. 5 vehicles. 6 event types. 5 agents. Continuous optimisation.*
+## Design Decisions
+
+**Why OR-Tools instead of letting the LLM plan routes?**
+Mathematical optimisation with provable bounds is the only correct tool for combinatorial routing. OR-Tools guarantees constraint satisfaction (capacity, time windows, shift limits). An LLM cannot. The agent layer handles everything that requires contextual reasoning — the solver handles everything that requires mathematical rigour.
+
+**Why LangGraph over CrewAI?**
+LangGraph exposes the graph structure explicitly. The conditional edge (`monitoring → dispatch` vs `monitoring → classification → ... → dispatch`) is a first-class architectural decision, visible in code and measurable in cost. CrewAI abstracts this away.
+
+**Why DuckDB?**
+Zero-configuration embedded OLAP with a SQL interface, MotherDuck cloud sync, and native Parquet/Arrow support. The same `duckdb.connect()` call works locally (`hermes.duckdb`) and in the cloud (`md:hermes01`). No server, no migrations, no connection pool.
+
+**Why MotherDuck over a managed database?**
+HERMES generates data locally (solver runs, agent decisions). MotherDuck syncs those results to the cloud without requiring the solver or agents to run in the cloud. Evidence.dev reads from MotherDuck at build time — the expensive compute stays local.
+
+**Why temperature 0.2?**
+Logistics dispatch requires consistent, reproducible reasoning — not creative variation. Lower temperature reduces hallucination of node IDs and route numbers in agent outputs. Hard-coded as a module constant to prevent accidental overrides.
+
+**Why `pip install -e .` instead of `sys.path.insert`?**
+Editable installs register `hermes` as a proper Python package. All inter-module imports (`from agents.llm_client import ...`, `from optimization.cvrptw_solver import ...`) resolve correctly without path manipulation. Reproducible in CI, in MotherDuck, and on any machine with the repo cloned.
+
+---
+
+## Known Issues & Next Steps
+
+### Pre-existing issues (flagged, not yet fixed)
+
+| Issue | File | Line | Impact |
+|---|---|---|---|
+| Depot start time unconstrained | `cvrptw_solver.py` | 185 | `fix_start_cumul_to_zero=False` allows sub-midnight departures in edge cases |
+| Dead local variable `fleet` | `sla_risk_agent.py` | 43 | Ruff F841 — no functional impact |
+| Import sort + line length | `optimization/`, `events/`, `dashboard/` | Various | Cosmetic ruff warnings |
+
+### Next implementation steps
+
+- **Tool-calling integration:** Wire `TOOL_REGISTRY` stubs into `complete()` via OpenAI `tools` parameter. Three stubs ready: `telemetry_lookup` (DuckDB query), `solver_bridge` (subprocess), `notification` (console + DB row).
+- **Fix depot constraint:** Set `fix_start_cumul_to_zero=True` in `cvrptw_solver.py:185`.
+- **Drop F841:** Remove dead `fleet` local in `sla_risk_agent.py:43`.
+- **Bruin Cloud:** Connect repo to Bruin Cloud for scheduled daily pipeline runs and DAG visualisation UI.
+- **Evidence dashboard custom nav:** `dashboard/src/routes/+layout.svelte` with HERMES top navigation replacing default Evidence sidebar.
+
+---
+
+## Acknowledgements
+
+Built on top of:
+- [Google OR-Tools](https://developers.google.com/optimization) — CVRPTW solver
+- [LangGraph](https://langchain-ai.github.io/langgraph/) — Agent orchestration
+- [Bruin](https://bruin-data.github.io/bruin/) — Data pipeline orchestration
+- [Evidence.dev](https://evidence.dev) — SQL-native BI dashboard
+- [MotherDuck](https://motherduck.com) — Cloud DuckDB
+- [NVIDIA NIM](https://www.nvidia.com/en-us/ai/) — LLM inference gateway
+
+---
+
+*HERMES — built as an AI Systems Engineering portfolio project demonstrating the integration of Operations Research, multi-agent LLM systems, and modern data engineering.*

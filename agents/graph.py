@@ -9,9 +9,9 @@ Graph topology:
                                     (conditional) → re_invoke_solver
 
 The only conditional edge is after the Rerouting Agent:
-  - If should_resolv=True  → dispatch (solver re-invocation is handled
+  - If should_resolve=True  → dispatch (solver re-invocation is handled
                               in run_agents.py AFTER the graph completes)
-  - If should_resolv=False → dispatch directly
+  - If should_resolve=False → dispatch directly
 
 This keeps the graph clean: the solver is an external process, not a
 LangGraph node. Agents decide; the pipeline executes.
@@ -19,21 +19,15 @@ LangGraph node. Agents decide; the pipeline executes.
 
 from __future__ import annotations
 
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from langgraph.graph import END, StateGraph
 
+import agents.classification_agent as classification
+import agents.dispatch_agent as dispatch
+import agents.monitoring_agent as monitoring
+import agents.rerouting_agent as rerouting
+import agents.sla_risk_agent as sla_risk
 from agents.state import HermesState
 from agents.telemetry import wrap_agent_node
-import agents.monitoring_agent    as monitoring
-import agents.classification_agent as classification
-import agents.sla_risk_agent       as sla_risk
-import agents.rerouting_agent      as rerouting
-import agents.dispatch_agent       as dispatch
-
 
 # ---------------------------------------------------------------------------
 # Conditional routing logic

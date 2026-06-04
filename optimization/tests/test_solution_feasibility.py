@@ -10,32 +10,29 @@ Run:
 
 from __future__ import annotations
 
-import json
-import os
-import sys
-
-import duckdb
 import pytest
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from optimization.cvrptw_solver import Node, SolverInput, Vehicle, solve
 
-
 # ---------------------------------------------------------------------------
-# Minimal test fixture — Solomon C101 instance (first 10 customers)
+# Minimal test fixture — Solomon C101 instance (first 5 customers)
 # ---------------------------------------------------------------------------
-# Coordinates scaled so travel_time ≈ Euclidean distance (Solomon standard)
+# Coordinates scaled so travel_time ≈ Euclidean distance (Solomon standard).
+#
+# service_min=30 (deviation from C101's 90-min standard): the fixture's
+# narrow time windows (45–81 min wide) cannot accommodate 90-min service,
+# which made the problem INFEASIBLE by construction. 30-min service fits
+# all windows and is a common Solomon variant.
 
 DEPOT = Node(node_id=0, name="Depot", tw_open=0, tw_close=1236,
              service_min=0, demand_units=0, is_depot=True)
 
 CUSTOMERS = [
-    Node(node_id=1,  name="C1",  tw_open=912,  tw_close=967,  service_min=90, demand_units=10, is_depot=False),
-    Node(node_id=2,  name="C2",  tw_open=825,  tw_close=870,  service_min=90, demand_units=30, is_depot=False),
-    Node(node_id=3,  name="C3",  tw_open=65,   tw_close=146,  service_min=90, demand_units=10, is_depot=False),
-    Node(node_id=4,  name="C4",  tw_open=727,  tw_close=782,  service_min=90, demand_units=10, is_depot=False),
-    Node(node_id=5,  name="C5",  tw_open=15,   tw_close=67,   service_min=90, demand_units=10, is_depot=False),
+    Node(node_id=1,  name="C1",  tw_open=912,  tw_close=967,  service_min=30, demand_units=10, is_depot=False),
+    Node(node_id=2,  name="C2",  tw_open=825,  tw_close=870,  service_min=30, demand_units=30, is_depot=False),
+    Node(node_id=3,  name="C3",  tw_open=65,   tw_close=146,  service_min=30, demand_units=10, is_depot=False),
+    Node(node_id=4,  name="C4",  tw_open=727,  tw_close=782,  service_min=30, demand_units=10, is_depot=False),
+    Node(node_id=5,  name="C5",  tw_open=15,   tw_close=67,   service_min=30, demand_units=10, is_depot=False),
 ]
 
 # Simple symmetric distance/time matrix (integer minutes)

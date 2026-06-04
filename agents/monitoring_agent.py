@@ -11,47 +11,21 @@ Responsibility:
 This agent does NOT classify events, does NOT assess SLA risk,
 and does NOT make routing decisions. It only observes and flags.
 
-Model: MONITORING_MODEL — deepseek/deepseek-v4-flash:free
+Model: meta/llama-4-maverick-17b-128e-instruct (via MODEL_REGISTRY["monitoring"])
 """
 
 from __future__ import annotations
 
 import json
-import os
-import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from pydantic import ValidationError
 
-from agents.llm_client import MONITORING_MODEL, complete
+from agents.llm_client import MODEL_REGISTRY, complete
+from agents.schemas import MonitoringOutput
 from agents.state import HermesState
 
-SYSTEM_PROMPT = """You are the Monitoring Agent for HERMES, an AI-powered logistics operations platform.
-
-Your sole responsibility is to observe incoming logistics events and determine whether anomalies exist that require operational attention.
-
-You receive a list of raw events from the field. Each event has a type, a vehicle ID, a node ID, and a payload.
-
-Event types you may see:
-- vehicle_telemetry: GPS pings, speed, fuel, engine status
-- route_deviation: vehicle significantly off planned route
-- traffic_disruption: congestion or road incidents affecting arcs
-- failed_delivery: delivery could not be completed
-- live_order: new order arrived after routes started
-- vehicle_breakdown: vehicle is immobilised
-
-Your output must be a JSON object with exactly these fields:
-{
-  "anomalies_detected": true or false,
-  "anomaly_count": integer,
-  "anomaly_types": ["list", "of", "event", "types", "that", "are", "anomalous"],
-  "monitoring_summary": "2-3 sentence plain English summary of what you observed"
-}
-
-Rules:
-- vehicle_telemetry alone is NOT an anomaly unless fuel_pct < 15 or engine_status is 'off'
-- Any route_deviation, traffic_disruption, failed_delivery, live_order, or vehicle_breakdown IS an anomaly
-- Be precise. Do not inflate the severity of what you see.
-- Return ONLY the JSON object. No preamble, no markdown fences."""
+SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "monitoring.txt").read_text(encoding="utf-8")
 
 
 def run(state: HermesState) -> HermesState:
@@ -84,26 +58,22 @@ def run(state: HermesState) -> HermesState:
     raw_response = complete(
         system_prompt=SYSTEM_PROMPT,
         user_message=user_message,
-        model=MONITORING_MODEL,
-        max_tokens=400,
+        model=MODEL_REGISTRY["monitoring"],
+        max_tokens=200,
     )
 
     try:
-        result = json.loads(raw_response)
-    except json.JSONDecodeError:
+        parsed = MonitoringOutput.model_validate_json(raw_response)
+    except ValidationError:
         # Graceful degradation — if LLM returns malformed JSON, flag for review
-        result = {
-            "anomalies_detected": True,
-            "anomaly_count": len(raw_events),
-            "anomaly_types": ["parse_error"],
-            "monitoring_summary": f"Monitoring agent parse error. Raw: {raw_response[:200]}",
-        }
+        parsed = MonitoringOutput(
+            anomalies_detected=True,
+            anomaly_count=len(raw_events),
+            anomaly_types=["parse_error"],
+            monitoring_summary=f"Monitoring agent parse error. Raw: {raw_response[:200]}",
+        )
 
-    state["anomalies_detected"] = result.get("anomalies_detected", False)
-    state["monitoring_summary"] = result.get("monitoring_summary", "")
+    state["anomalies_detected"] = parsed.anomalies_detected
+    state["monitoring_summary"] = parsed.monitoring_summary
 
-    print(
-        f"  [Monitoring]    anomalies={state['anomalies_detected']} | "
-        f"summary: {state['monitoring_summary'][:80]}..."
-    )
     return state

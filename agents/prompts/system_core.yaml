@@ -1,0 +1,35 @@
+# HERMES System Core
+# Shared framework instructions and telemetry constraints for all 5 agents.
+# Each agent's role-specific prompt in this directory references these rules.
+# This file is documentation; the same rules are inlined in each .txt prompt
+# so agents do not require runtime YAML parsing.
+
+project: HERMES
+full_name: Hierarchical Execution & Routing for Multi-agent Enterprise Supply-chain
+provider: NVIDIA NIM
+api_base: https://integrate.api.nvidia.com/v1
+temperature: 0.2
+
+# Output contract — every agent that emits JSON must follow these rules.
+output:
+  format: strict_json
+  rules:
+    - Return ONLY the JSON object or array. No preamble, no markdown fences.
+    - Enum values must be lowercase strings (e.g. "low", "immediate").
+    - Numeric ranges are enforced: sla_risk_score ∈ [0.0, 1.0], anomaly_count ≥ 0.
+    - Vehicle IDs follow VH-NNN format (e.g. "VH-001").
+    - Node IDs are integers.
+    - Times are minutes from midnight.
+
+# Validation layer — every LLM response is parsed by Pydantic schemas.
+telemetry:
+  schema_module: agents.schemas
+  fallback_policy: safe_default
+  on_parse_error: "agent logs warning, inserts a degraded fallback instance, pipeline continues"
+
+# Graph topology — solver is NOT a LangGraph node (stateless subprocess).
+topology:
+  entry: monitoring
+  path: monitoring → (conditional) → classification → sla_risk → rerouting → dispatch
+  solver_invocation: external_subprocess
+  solver_trigger_decision: rerouting_agent.should_resolve

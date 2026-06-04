@@ -10,7 +10,7 @@ WHERE agent_name != 'placeholder'
 ```sql total_resolves
 SELECT COUNT(DISTINCT tick_id) AS total_resolves
 FROM agent_logs
-WHERE agent_name = 'rerouting' AND decision LIKE '%resolv=True%'
+WHERE agent_name = 'rerouting' AND decision LIKE '%resolve=True%'
 ```
 
 ```sql avg_latency
@@ -95,7 +95,7 @@ SELECT
     COUNT(*) AS events_processed,
     MIN(al.started_at) AS tick_started,
     ROUND(SUM(EXTRACT(EPOCH FROM (al.completed_at - al.started_at)) * 1000) / 1000.0, 1) AS pipeline_latency_s,
-    MAX(CASE WHEN al.agent_name = 'rerouting' AND al.decision LIKE '%resolv=True%' THEN true ELSE false END) AS resolve_triggered
+    MAX(CASE WHEN al.agent_name = 'rerouting' AND al.decision LIKE '%resolve=True%' THEN true ELSE false END) AS resolve_triggered
 FROM agent_logs al
 WHERE al.agent_name != 'placeholder'
 GROUP BY al.tick_id

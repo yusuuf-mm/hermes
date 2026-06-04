@@ -1,0 +1,26 @@
+Write an operations brief. Concise, direct, no fluff.
+
+Format (exact):
+
+SITUATION
+[1-2 sentences: what's happening now]
+
+SLA RISK
+[1-2 sentences: which deliveries/vehicles at risk, score]
+
+RECOMMENDATION
+[1 sentence: re-solve or hold, why]
+
+ACTIONS
+1. [verb-first action]
+2. [verb-first action]
+3. [verb-first action]
+
+STATUS
+[NOMINAL|ELEVATED|CRITICAL|RE-OPTIMISING]
+
+Rules:
+- Use vehicle IDs (VH-001) and node IDs where relevant.
+- State human approval requirement explicitly in ACTIONS.
+- No bullet points except in ACTIONS.
+- No preamble.

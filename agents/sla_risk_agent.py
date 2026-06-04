@@ -15,53 +15,21 @@ Responsibility:
   That is exclusively the Rerouting Agent's responsibility.
   This agent only quantifies and explains the risk.
 
-Model: SLA_RISK_MODEL — openai/gpt-oss-120b:free
+Model: meta/llama-4-maverick-17b-128e-instruct (via MODEL_REGISTRY["sla_risk"])
 """
 
 from __future__ import annotations
 
 import json
-import os
-import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from pydantic import ValidationError
 
-from agents.llm_client import SLA_RISK_MODEL, complete
+from agents.llm_client import MODEL_REGISTRY, complete
+from agents.schemas import RiskLevel, SLARiskReport
 from agents.state import HermesState
 
-SYSTEM_PROMPT = """You are the SLA Risk Agent for HERMES, an AI-powered logistics operations platform.
-
-Your sole responsibility is to quantify the risk of Service Level Agreement (SLA) breaches — specifically, the risk that one or more deliveries will miss their committed customer time windows.
-
-You receive:
-1. The current optimised route plan (vehicle routes, stop sequences, scheduled arrival times)
-2. A list of classified operational events (with severity and category)
-3. Fleet information (vehicle capacities and shift limits)
-
-Your output must be a JSON object with exactly these fields:
-{
-  "overall_risk_level": "low|medium|high|critical",
-  "sla_risk_score": 0.0 to 1.0,
-  "at_risk_nodes": [list of node_ids where time windows are at risk],
-  "at_risk_vehicles": [list of vehicle_ids implicated],
-  "risk_factors": ["list of specific factors driving the risk score"],
-  "reasoning": "3-5 sentence explanation of your risk assessment"
-}
-
-Risk scoring guidance:
-- sla_risk_score 0.0–0.2: nominal, no action likely needed
-- sla_risk_score 0.2–0.5: elevated, monitor closely
-- sla_risk_score 0.5–0.8: high, intervention likely needed
-- sla_risk_score 0.8–1.0: critical, immediate action required
-
-Key risk drivers to consider:
-- Traffic disruptions on arcs that feed time-sensitive stops (narrow tw_close windows)
-- Vehicle breakdowns removing capacity from active routes
-- Route deviations causing time loss on vehicles with tight remaining schedules
-- Failed deliveries requiring retry stops adding time to routes
-- New high-priority orders requiring insertion into already-tight routes
-
-Return ONLY the JSON object. No preamble, no markdown fences."""
+SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "sla_risk.txt").read_text(encoding="utf-8")
 
 
 def run(state: HermesState) -> HermesState:
@@ -127,27 +95,22 @@ def run(state: HermesState) -> HermesState:
     raw_response = complete(
         system_prompt=SYSTEM_PROMPT,
         user_message=user_message,
-        model=SLA_RISK_MODEL,
-        max_tokens=800,
+        model=MODEL_REGISTRY["sla_risk"],
+        max_tokens=300,
     )
 
     try:
-        report = json.loads(raw_response)
-    except json.JSONDecodeError:
-        report = {
-            "overall_risk_level": "high",
-            "sla_risk_score":     0.7,
-            "at_risk_nodes":      [],
-            "at_risk_vehicles":   [],
-            "risk_factors":       ["parse_error"],
-            "reasoning":          f"SLA risk agent parse error. Raw: {raw_response[:200]}",
-        }
+        parsed = SLARiskReport.model_validate_json(raw_response)
+    except ValidationError:
+        parsed = SLARiskReport(
+            overall_risk_level=RiskLevel.HIGH,
+            sla_risk_score=0.7,
+            at_risk_nodes=[],
+            at_risk_vehicles=[],
+            risk_factors=["parse_error"],
+            reasoning=f"SLA risk agent parse error. Raw: {raw_response[:200]}",
+        )
 
-    state["sla_risk_report"] = report
+    state["sla_risk_report"] = parsed.model_dump()
 
-    print(
-        f"  [SLA Risk]       score={report.get('sla_risk_score', '?')} | "
-        f"level={report.get('overall_risk_level', '?')} | "
-        f"at_risk_nodes={report.get('at_risk_nodes', [])}"
-    )
     return state

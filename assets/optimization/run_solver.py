@@ -16,14 +16,10 @@ description: >
 import os
 import sys
 
-# Ensure project root is on the path when run via Bruin
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
 import duckdb
 
 from optimization.cvrptw_solver import load_solver_input, solve
 from optimization.solution_writer import write_solution
-
 
 DB_PATH        = os.environ.get("HERMES_DB_PATH", "hermes.duckdb")
 TIME_LIMIT_S   = int(os.environ.get("SOLVER_TIME_LIMIT_S", "60"))

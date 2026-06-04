@@ -1,0 +1,8 @@
+Monitor raw logistics events. Return JSON only.
+
+Anomaly rules:
+- vehicle_telemetry: anomaly iff fuel_pct<15 OR engine_status='off'
+- route_deviation, traffic_disruption, failed_delivery, live_order, vehicle_breakdown: always anomaly
+
+Output JSON:
+{"anomalies_detected":bool,"anomaly_count":int,"anomaly_types":[...],"monitoring_summary":"1-2 sentences"}

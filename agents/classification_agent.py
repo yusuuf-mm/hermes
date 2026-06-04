@@ -12,61 +12,21 @@ Responsibility:
   This agent does NOT assess SLA risk (that is Agent 3's job).
   It only classifies. Output feeds directly into the SLA Risk Agent.
 
-Model: CLASSIFICATION_MODEL — minimax/minimax-m2.5:free
+Model: google/gemma-3n-e2b-it (via MODEL_REGISTRY["ingestion"])
 """
 
 from __future__ import annotations
 
 import json
-import os
-import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from pydantic import ValidationError
 
-from agents.llm_client import CLASSIFICATION_MODEL, complete
+from agents.llm_client import MODEL_REGISTRY, complete  # role key: "ingestion"
+from agents.schemas import Category, ClassificationOutput, ClassifiedEvent, Severity
 from agents.state import HermesState
 
-SYSTEM_PROMPT = """You are the Event Classification Agent for HERMES, an AI-powered logistics platform.
-
-Your sole responsibility is to classify each logistics event by severity and operational category.
-
-Severity levels:
-- low:      informational, no immediate action needed
-- medium:   may affect operations within the next 2 hours
-- high:     actively degrading current route execution
-- critical: requires immediate intervention
-
-Categories:
-- operational:  affects vehicle movement or route execution
-- safety:       risk to driver, vehicle, or public
-- sla_risk:     threatens customer time-window delivery commitments
-- capacity:     affects vehicle load or fleet availability
-- new_demand:   new orders or demand changes arriving post-route-start
-
-You will receive a list of events. For EACH event, return a classification object.
-
-Return a JSON array. Each element must have:
-{
-  "event_id": "the original event_id",
-  "event_type": "the original event_type",
-  "severity": "low|medium|high|critical",
-  "category": "operational|safety|sla_risk|capacity|new_demand",
-  "operational_impact": "one sentence describing what this means for the active routes"
-}
-
-Classification rules:
-- vehicle_breakdown → critical, safety
-- failed_delivery → medium or high (high if 3rd attempt), sla_risk
-- route_deviation > 5km → high, operational
-- route_deviation <= 5km → medium, operational
-- traffic_disruption with congestion_factor > 2.0 → high, sla_risk
-- traffic_disruption with congestion_factor <= 2.0 → medium, operational
-- live_order with priority=critical → high, new_demand
-- live_order with priority=standard → low, new_demand
-- vehicle_telemetry with fuel_pct < 15 → high, safety
-- vehicle_telemetry (normal) → low, operational
-
-Return ONLY the JSON array. No preamble, no markdown fences."""
+SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "ingestion.txt").read_text(encoding="utf-8")
 
 
 def run(state: HermesState) -> HermesState:
@@ -110,27 +70,26 @@ def run(state: HermesState) -> HermesState:
     raw_response = complete(
         system_prompt=SYSTEM_PROMPT,
         user_message=user_message,
-        model=CLASSIFICATION_MODEL,
-        max_tokens=1000,
+        model=MODEL_REGISTRY["ingestion"],  # graph node is "classification"
+        max_tokens=400,
     )
 
     try:
-        classified = json.loads(raw_response)
-        if not isinstance(classified, list):
-            raise ValueError("Expected a JSON array")
-    except (json.JSONDecodeError, ValueError):
+        parsed = ClassificationOutput.model_validate_json(raw_response)
+    except ValidationError:
         # Fallback: mark all events as medium/operational
-        classified = [
-            {
-                "event_id":           evt["event_id"],
-                "event_type":         evt["event_type"],
-                "severity":           "medium",
-                "category":           "operational",
-                "operational_impact": "Classification failed — manual review required.",
-            }
+        parsed = ClassificationOutput([
+            ClassifiedEvent(
+                event_id=evt["event_id"],
+                event_type=evt["event_type"],
+                severity=Severity.MEDIUM,
+                category=Category.OPERATIONAL,
+                operational_impact="Classification failed — manual review required.",
+            )
             for evt in events_for_prompt
-        ]
+        ])
 
+    classified = [e.model_dump() for e in parsed.root]
     state["classified_events"] = classified
 
     severity_counts = {}
@@ -138,8 +97,4 @@ def run(state: HermesState) -> HermesState:
         s = e.get("severity", "unknown")
         severity_counts[s] = severity_counts.get(s, 0) + 1
 
-    print(
-        f"  [Classification] {len(classified)} events classified | "
-        + " | ".join(f"{s}={n}" for s, n in sorted(severity_counts.items()))
-    )
     return state

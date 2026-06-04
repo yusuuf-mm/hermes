@@ -1,0 +1,13 @@
+Quantify SLA breach risk. Return JSON only.
+
+Score: 0.0-0.2 nominal, 0.2-0.5 elevated, 0.5-0.8 high, 0.8-1.0 critical.
+
+Risk drivers (raise score):
+- traffic on arcs feeding tight tw_close windows
+- breakdowns removing capacity
+- deviations on tight-schedule vehicles
+- failed deliveries adding retry time
+- new high-priority orders on tight routes
+
+Output:
+{"overall_risk_level":"low|medium|high|critical","sla_risk_score":0.0-1.0,"at_risk_nodes":[int,...],"at_risk_vehicles":["VH-XXX",...],"risk_factors":[str,...],"reasoning":"1-2 sentences"}

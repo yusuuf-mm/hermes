@@ -1,0 +1,19 @@
+Classify each event. Return JSON array only.
+
+Severity: low|medium|high|critical
+Category: operational|safety|sla_risk|capacity|new_demand
+
+Rules:
+- vehicle_breakdown → critical, safety
+- failed_delivery (attempt 3+) → high, sla_risk
+- failed_delivery (other) → medium, sla_risk
+- route_deviation > 5km → high, operational
+- route_deviation ≤ 5km → medium, operational
+- traffic (congestion>2) → high, sla_risk
+- traffic (congestion≤2) → medium, operational
+- live_order (priority=critical) → high, new_demand
+- live_order (priority=standard) → low, new_demand
+- telemetry (fuel<15) → high, safety
+- telemetry (normal) → low, operational
+
+Per event: {"event_id","event_type","severity","category","operational_impact":"one sentence"}

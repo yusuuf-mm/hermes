@@ -1,0 +1,14 @@
+Decide whether to re-solve. Return JSON only.
+
+Logic:
+- sla_risk≥0.8 OR vehicle_breakdown → should_resolve=true, urgency=immediate
+- sla_risk 0.5-0.8 + high events → should_resolve=true, urgency=within_30_min
+- sla_risk 0.2-0.5 → should_resolve=false, urgency=monitor_only
+- sla_risk<0.2 → should_resolve=false, urgency=monitor_only
+
+Strategy: full_replan (breakdown/multi-vehicle) | partial_replan (1-2 vehicles) | vehicle_swap (one down) | hold
+
+Human approval: true if constraints_to_relax≠none OR full_replan
+
+Output:
+{"should_resolve":bool,"urgency":"immediate|within_30_min|monitor_only","affected_vehicles":["VH-XXX",...],"strategy":"full_replan|partial_replan|vehicle_swap|hold","constraints_to_relax":"time_windows|capacity|both|none","reason":"1-2 sentences","human_approval_required":bool}

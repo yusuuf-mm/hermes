@@ -9,9 +9,10 @@ description: >
 @bruin """
 
 import math
-import random
-import duckdb
 import os
+import random
+
+import duckdb
 
 random.seed(42)
 
